@@ -1,22 +1,47 @@
 \documentclass{article}
 \usepackage{graphicx} % Required for inserting images
+\usepackage{hyperref} % hyperlinks to reference
+\usepackage[onehalfspacing]{setspace} % line spacing
+\usepackage{geometry}
 
-% Title
+% Document Layout ==================================================
+\geometry{
+   left=3cm,
+   right=3cm}
+
+% Title ============================================================
 \title{Datenanalyse im Unternehmen}
 \author{Christopher Keibel}
 \date{\today}
 
-% Document start
+% Document start ===================================================
 \begin{document}
 
 \maketitle
 
-% Abstract
+% Abstract =========================================================
 \begin{abstract}
-    Abstract Text
+    Abstract Text...
 \end{abstract}
 
-
+% Main document ====================================================
 \section{Introduction}
+Since the arrival of \textit{ChatGPT}, generative AI algorithms have made their way into the mainstream media and the everyday lives of many\footnote{\href{https://www.reuters.com/technology/chatgpt-sets-record-fastest-growing-user-base-analyst-note-2023-02-01/}{Reuters}: \textit{ChatGPT} sets record for fastest-growing user base} people. Every day, numerous people use the chatbot \textit{ChatGPT} developed by \textit{OpenAI} to make everyday tasks easier. Behind its technological success is an algorithm called \textit{Transformer}\cite{attentionIsAllYouNeed}, an \textit{encoder-decoder} network that can efficiently process long text passages. To be precise, \textit{ChatGPT} utilizes only the \textit{decoder}\cite{GPT} component of the original \textit{Transformer}.
+In \cite{GPT}, \textit{OpenAI} demonstrates that \textit{large language models} are capable of learning a series of text-based tasks by a so called \textit{generative pretraining} on unlabeled data and a subsequent supervised task-specific \textit{fine tuning}.
+
+Even if the capabilities of a model trained in this way are impressive, they have a serious problem. The \textit{world knowledge} learned during the training of such models is contained in the model parameters\cite{RAG}, so that conclusions about the correctness of the generated outputs cannot be made. Here we often speak of model \textit{hallucination}, as it may generate outputs with a high confidence that may not be factually correct.
+
+Another problem is a so-called knowledge cutoff. This means that models can only learn the knowledge that is contained in their training data. Even if these models are trained on a large corpus of data, their knowledge ends with the date on which the data was last collected. In order to gain new knowledge, these models have to be retrained at some expense.
+
+In \cite{RAG}, a framework called \textit{retrieval augmented generation (RAG)} is presented, which is intended to counteract these problems. By adding a non-parameterized memory in the form of a vector database, the knowledge of the \textit{language model} is extended. 
+
+The workflow of this framework is defined by three main components. Another \textit{language model} which is called \textit{retriever}, is used to search the additional knowledge in the vector database on the basis of a query. The found information and the query are then passed to the third component, the generative \textit{language model}, which then answers the query based on the extracted information.
+
+This work discusses and evaluates the various components and the workflow of the framework. The capabilities of this technology are illustrated and possible drawbacks and problems are outlined.
+
+% bibliography =====================================================
+\newpage
+\bibliographystyle{plain}
+\bibliography{bibliography}
 
 \end{document}
