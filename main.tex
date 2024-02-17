@@ -2,7 +2,9 @@
 \usepackage{graphicx} % Required for inserting images
 \usepackage{hyperref} % hyperlinks to reference
 \usepackage[onehalfspacing]{setspace} % line spacing
-\usepackage{geometry}
+\usepackage{geometry} % Document spacing
+\usepackage{amsmath} % math formulas
+\usepackage{blindtext}
 
 % Document Layout ==================================================
 \geometry{
@@ -57,7 +59,43 @@ There are different ways to represent texts as vectors, which can be divided int
 \subsubsection*{Sparse vector representation} 
 To represent documents as sparse vectors, extensions of a \textit{bag of words} model are often used. A \textit{bag of words} model considers the words of a document independently of each other and counts them \cite[pp.~13ff]{eisensteinNLP}. When splitting documents into smaller units such as words or sub words, we also speak of \textit{tokens}\footnote{In the context of \textit{bag of word} models, I continue to write about words instead of \textit{tokens}, as these work on a word basis.}. The dimension of the resulting vector is equal to the number of our unique \textit{words}, the size of the \textit{vocabulary} of the \textit{bag of words} model. Each component of the vector is clearly assigned to a \textit{word} from the \textit{vocabulary}. The exact values of the vector components are created when a document is \textit{vectorized}. For each \textit{word}, the occurrence frequency in the document is counted and stored in the associated vector component. However, the vectors obtained in this way do not take into account the \textit{importance} or \textit{rarity} of a \textit{word} in the entire document.
 
-A first extension of the \textit{bag of word} model is \textit{tf-idf}, short for T\textit{erm Frequency Inverse Document Frequency}. \textit{Tf-idf} adds a weighting to the vector representation to capture the meaning of a word in a document relative to the frequency of the word in the entire corpus (all documents).
+However, simply counting words in \textit{information retrieval} is problematic. Texts often consist of many words that do not contribute much to the information content of the document; these words are referred to as \textit{stopwords}. A first extension of the \textit{bag of word} model is \textit{tf-idf}, short for \textit{Term Frequency Inverse Document Frequency}. \textit{Tf-idf} adds a weighting to the vector representation to capture the meaning of a word in a document relative to the frequency of the word in the entire corpus (all documents). 
+
+\begin{align}
+\begin{split}
+	tfidf_{t,d} &= tf_{t,d} \cdot idf_{t,D}\\[0.25\baselineskip]
+	\text{where:}\\ 
+    t &= \text{Term (word,)}\\
+	d &= \text{document,}\\ 
+	D &= \text{corpus (all documents.)}
+\end{split}
+\end{align}
+
+
+\textit{Term Frequency} counts how often a word occurs in a document, with the more occurrences being better.
+
+\begin{align}
+\begin{split}
+	tf_{t,d} &= \sum_{t: t \in d}1\\[0.25\baselineskip]
+	\text{where:}\\
+	t: t \in d &= \text{term (word) in document.}\\ 
+\end{split}
+\end{align}
+
+\textit{Inverse Document Frequency} counts how often the word occurs in the entire corpus. 
+
+\begin{align}
+\begin{split}
+	idf_{t,D} &= log\frac{N}{\sum_{D: t \in D} 1}\\[0.25\baselineskip]
+	\text{where:}\\
+	N &= \text{number of documents,}\\ 
+	D: t \in D &= \text{term (word) in document.}
+\end{split}
+\end{align}
+
+If a word occurs frequently in the entire corpus, it is possibly a \textit{stopword} and must be weighted lower. \textit{Tf idf} also takes into account the length of a document, as long documents have more words and therefore certain words occur more frequently than in shorter documents. If a long document and a short document have the same \textit{Tf idf} score, the long document is weighted lower.
+
+\textbf{TODO: BM25}
 
 \paragraph{Dense vector representation}
 
