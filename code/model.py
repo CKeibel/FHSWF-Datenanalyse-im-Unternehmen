@@ -41,7 +41,6 @@ class DecoderModel:
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         self.tokenizer.chat_template = self.get_jinja_tempalte()
         self.generation_config=generation_config if generation_config else self.default_generation_config()
-        # TODO: jinja template
         
     def get_jinja_tempalte(self):
         rag_template = "{% for message in messages %}\n" \
@@ -62,7 +61,7 @@ class DecoderModel:
         
     def default_generation_config(self):
         gen_cfg = GenerationConfig.from_pretrained(self.model_id)
-        gen_cfg.max_new_tokens = 50
+        gen_cfg.max_new_tokens = 150
         gen_cfg.pad_token_id = self.tokenizer.pad_token_id
         gen_cfg.begin_suppress_tokensrepetition_penalty = 5
         gen_cfg.no_repeat_ngram_size = 3
