@@ -85,3 +85,7 @@ class DecoderModel:
         tokenized_prompt = self.tokenize(prompt)
         outputs = self.model.generate(**tokenized_prompt, generation_config=self.generation_config) # TODO: generation config
         return self.tokenizer.decode(outputs[0][len(tokenized_prompt.input_ids[0]):])
+    
+class BM25Model:
+    # save index
+    # save indx2doc mapping
