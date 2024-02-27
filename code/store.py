@@ -9,7 +9,7 @@ class VectorStore:
     def __init__(self, model_id, hybrid=False, weight=0.5, distance_metric=None):
         self.encoder = EncoderModel(model_id)
         self.bm25 = BM25Model() if hybrid else None
-        self.documents = pd.DataFrame(columns=["id", "text", "vector"]) # pandas? -> id, text, vectors
+        self.documents = pd.DataFrame(columns=["id", "text", "vector"])
         self.distance_metric = distance_metric
         self.weight = weight
         
@@ -43,7 +43,7 @@ class VectorStore:
                 "id": self.documents.id.values[key]
             } for key, score in hybrid_results.items()
         ]
-        return sorted(result, key=lambda x: x["score"], reverse=True)
+        return sorted(result, key=lambda x: x["score"], reverse=True)[:top_n]
     
     def sparse_search(self, query, top_n):
         scores = self.bm25.search(query)
@@ -79,9 +79,10 @@ class VectorStore:
             scores = np.subtract(1, scores)
         return {idx: score for idx, score in zip(idxs, scores)}
                 
-    def add_documents(self, documents: list[str]):
+    def add_documents(self, documents: list[str], ids=None):
         vectors = self.encoder(documents)
-        ids = [i + len(self.documents) for i, _ in enumerate(documents)]
+        if ids is None:
+            ids = [i + len(self.documents) for i, _ in enumerate(documents)]
         new_data = pd.DataFrame(
                     {
                         "id": ids,

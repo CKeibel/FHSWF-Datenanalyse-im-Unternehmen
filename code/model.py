@@ -46,7 +46,7 @@ class DecoderModel:
         assert isinstance(generation_config, GenerationConfig) or generation_config is None
         self.model_id = model_id
         self.device = device if device else "auto"
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device, **kwargs)
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device, torch_dtype=torch.float16, **kwargs)
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         self.tokenizer.chat_template = self.get_jinja_tempalte()
         self.generation_config=generation_config if generation_config else self.default_generation_config()
@@ -93,7 +93,9 @@ class DecoderModel:
         prompt = self.construct_rag_prompt(question, context)
         tokenized_prompt = self.tokenize(prompt)
         outputs = self.model.generate(**tokenized_prompt, generation_config=self.generation_config) # TODO: generation config
-        return self.tokenizer.decode(outputs[0][len(tokenized_prompt.input_ids[0]):])
+        answer = self.tokenizer.decode(outputs[0][len(tokenized_prompt.input_ids[0]):])
+        torch.cuda.empty_cache()
+        return answer
     
 class BM25Model:
     def __init__(self):
