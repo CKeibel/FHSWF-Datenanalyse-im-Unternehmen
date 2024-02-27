@@ -1,13 +1,21 @@
 import torch
 import torch.nn.functional as F
+import numpy as np
+from rank_bm25 import BM25Okapi
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+import nltk
+
+nltk.download('wordnet')
 
 
 class EncoderModel:
     """Encoder class to encode documents and queries into a vector space."""
     def __init__(self, model_id, device=None):
         self.model_id = model_id
-        self.device = device if device else "cpu"
+        fallback_device = "cuda" if torch.cuda.is_available() else device
+        self.device = device if device else fallback_device
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         self.model = AutoModel.from_pretrained(self.model_id).to(self.device)
 
@@ -28,6 +36,7 @@ class EncoderModel:
         tokenized_document = self.tokenize(document)
         outputs = self.model_inference(tokenized_document)
         embeddings = self.mean_pooling(outputs, tokenized_document["attention_mask"])
+        torch.cuda.empty_cache()
         return F.normalize(embeddings, p=2, dim=1).cpu().numpy()
 
 class DecoderModel:
@@ -87,5 +96,39 @@ class DecoderModel:
         return self.tokenizer.decode(outputs[0][len(tokenized_prompt.input_ids[0]):])
     
 class BM25Model:
-    # save index
-    # save indx2doc mapping
+    def __init__(self):
+        self.mapping = dict()
+        self.documents = list()
+        self.bm25 = None
+        self.lemmatizer = WordNetLemmatizer()
+        
+    def clean_string(self, text):
+        result = []
+        words = word_tokenize(text.lower())
+        for word in words:
+                word = self.lemmatizer.lemmatize(word)
+                result.append(word)
+        return result
+    
+    def clean_documents(self, documents):
+        cleaned_docs = []
+        for doc in documents:
+            doc = self.clean_string(doc)
+            cleaned_docs.append(doc)
+            
+        return cleaned_docs
+    
+    def add_documents(self, documents):
+        cleaned_docs = self.clean_documents(documents)
+        self.bm25 = BM25Okapi(cleaned_docs)
+        
+    def search(self, query):
+        cleaned_query = self.clean_string(query)
+        scores = self.bm25.get_scores(cleaned_query)
+        return scores
+        
+    def save_index(self):
+        pass
+    
+    def load_index(self):
+        pass
