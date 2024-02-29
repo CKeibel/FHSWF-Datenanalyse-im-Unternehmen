@@ -1,0 +1,802 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\graphicspath{ {./graphics/} }
+\usepackage{hyperref} % hyperlinks to reference
+\usepackage[singlespacing]{setspace} % line spacing - onehalfspacing
+\usepackage{geometry} % Document spacing
+\usepackage{amsmath} % math formulas
+\usepackage{amssymb}
+\usepackage{blindtext}
+\usepackage{pgfplots} % graphics
+\pgfplotsset{width=10cm,compat=1.9} % graphics
+\usepackage{tkz-euclide}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{cleveref}
+\usepackage{natbib}
+\usepackage{listings}
+\usepackage{import}
+
+% Document Layout ==================================================
+\geometry{
+   left=3cm,
+   right=3cm}
+
+\pagenumbering{gobble}
+% Title ============================================================
+\title{Datenanalyse im Unternehmen}
+\author{Christopher Keibel \\ 30341906 \\South Westphalia University of Applied Sciences }
+\date{\today}
+
+% Document start ===================================================
+\begin{document}
+
+\maketitle
+
+% Abstract =========================================================
+\begin{abstract}
+This work is being done in the context of module \textit{Datenanylse im Unternehmen} at the \textit{South Westphalia University of Applied Sciences}. The goal of the project is to design a \textit{retrieval augmented generation} pipeline in which the models for retrieving documents and those for generating answers can be easily swapped. The pipeline evaluates the individual components and their interaction as a closed system. In addition, an optional keyword retriever is provided for the retrieval of documents in order to implement and evaluate a hybrid search. At the beginning of the work, the individual components are explained in a theoretical section. This is followed by the methodology part, in which the implementation and evaluation are described. 
+\end{abstract}
+
+\newpage
+
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+% Main document ====================================================
+\section{Introduction} \label{Introduction}
+Since the arrival of \textit{ChatGPT}, generative AI algorithms have made their way into the mainstream media and the everyday lives of many\footnote{\href{https://www.reuters.com/technology/chatgpt-sets-record-fastest-growing-user-base-analyst-note-2023-02-01/}{Reuters}: \textit{ChatGPT} sets record for fastest-growing user base} people. Every day, numerous people use the chatbot \textit{ChatGPT} developed by \textit{OpenAI} to make everyday tasks easier. Behind its technological success is an algorithm called \textit{Transformer} \cite{attentionIsAllYouNeed}, an \textit{encoder-decoder} network that can efficiently process long text passages. To be precise, \textit{ChatGPT} utilizes only the \textit{decoder}\cite{GPT1} component of the original \textit{Transformer}.
+
+In \cite{GPT1, GPT2}, \textit{OpenAI} shows that \textit{language models} can learn different text-based tasks through \textit{generative pre-training (causal language modelling)}. The \textit{generative pre-training} is done on an unlabelled dataset and the goal of the \textit{language model} during \textit{language modelling} is to predict the next \textit{token} given a sequence of \textit{tokens} as input. In \cite{GPT3}, \textit{OpenAI} shows that scaling these \textit{language models} has a significant impact on the capabilities and performance. The capabilities of these models can be improved by further a so-called \textit{instruction fine-tuning} \cite{instructionFineTuning} for specific tasks and by using \textit{reinforcement learning from human feedback} \cite{RLHF} to more closely match the output to human intent.
+
+Although models trained in this way may have impressive capabilities, they still have a serious problem. The knowledge acquired during the training of these models is stored in the model parameters\cite{RAG}. Therefore, it is not possible to draw conclusions about the accuracy of the generated outputs. Here we often speak of model \textit{hallucination}, as it may generate outputs with a high confidence that may not be factually correct.
+
+Another issue is the knowledge cutoff problem. This refers to the limitation of models to learn only the information present in their training data.   Despite being trained on a vast corpus of data, their knowledge is restricted to the date on which the data was last collected. To acquire new knowledge, these models have to be re-trained at some expense.
+
+In \cite{RAG}, a framework called \textit{retrieval augmented generation (RAG)} is proposed, which is intended to solve these problems. By adding a non-parameterized memory in the of a vector database, the knowledge of the \textit{language model} is augmented. 
+
+The workflow of this framework is defined by three main components. In addition to the generative model, another \textit{language model} which is called \textit{retriever}, is used to search the additional knowledge that is stored in the vector database on the basis of a query. The found information and the query are then passed to the third component, the generative \textit{language model}, which then answers the query based on the extracted information.
+
+Unlike online web search engines such as \textit{Google} or \textit{Bing}, this setup also allows users to perform searches on their own data by indexing it using a vector database. 
+\\
+\\
+This work discusses and evaluates the various components and the workflow of the \textit{retrieval augmented generation} framework. The capabilities of this technology are illustrated and possible drawbacks and problems are outlined.
+\Cref{RAG} provides a theoretical basis for the technology, which is a prerequisite for understanding and implementing the project described in \cref{Methodology}.
+
+\section{Retrieval Augmented Generation (RAG)} \label{RAG}
+As we have learned in \cref{Introduction}, the \textit{retrieval augmented generation} framework augments the context of our \textit{prompts} with relevant information to address the knowledge limitations of \textit{generative models}.
+In this chapter, we will take a detailed look at the components of the \textit{RAG} framework and how they interact with each other to overcome the limitations of \textit{generative models}.
+
+\subsection{Retrieving relevant information}
+A critical part of making this framework work well, is finding relevant information to a user query. If the information passed to the \textit{generative language model} is not relevant to the query, the \textit{generative model} will not be able to return a qualified answer. The search for relevant information therefore seems to be one of the most important components of the framework for it to be successful. In a \textit{RAG} setup, the system receives a user query in the form of a \textit{string} and must find relevant information from a \textit{data store}\footnote{A \textit{data store} is a collection of information that is searched by the \textit{RAG} framework. The information can be stored in a database or even in a simple list.
+} based on this \textit{string}. Since the query is delivered in \textit{string} form, it is not easily possible to perform a classic \textit{SQL} database query to find the desired information. To be able to easily find and store data in the form of a \textit{string}, we make use of \textit{natural language processing (NLP)} algorithms to convert given texts into vectors.
+
+Transforming texts and documents\footnote{I will use the words document and text interchangeably in this work, both mean the same thing in the context of this work.} into vectors and thus into a \textit{Euclidean vector space} with same dimension helps to perform meaningful retrieval operations \cite{vectorSpaceModel}. A \textit{Euclidean vector space} has the property that the similarity between vectors within it can be calculated. We make use of this property in \textit{information retrieval} to map documents and user queries in the same \textit{Euclidean space} and calculate the similarity between them. A similarity function like \textit{cosine similarity} indicates how close a query vector is to a document vector in the \textit{vector space}. The closer together these vectors are, the more likely we assume that they have a similar meaning. It is therefore important to find a good method that maps similar documents into a similar \textit{vector representation}, so that they are close to each other in the in the \textit{vector space}.
+
+\subsubsection{Vector representations of text} \label{text2vector}
+There are different ways to represent texts as vectors, which can be divided into two fundamental categories, which will be used in \cref{Methodology} to perform \textit{information retrieval}. The first category are so called \textit{sparse vectors}, which are commonly used for keyword searches. The second category are \textit{dense vectors}. \textit{Dense vectors} aim to encode the \textit{semantic meaning} of a document without being limited to exact keywords.
+\\
+
+
+\subsubsection*{Sparse vector representation}
+To represent documents as sparse vectors, extensions of a \textit{bag-of-words} model are often used. In a \textit{bag-of-words} model, unique words are considered independently of each other, and their respective occurrences are counted. \cite[pp.~13ff]{eisensteinNLP}. When splitting documents into smaller units such as words or sub words, we also speak of \textit{tokens}\footnote{In the context of \textit{bag-of-words} models, I continue to write about words or terms instead of \textit{tokens}, as these work on a word/ term basis.}. The dimension of the resulting vectors is equal to the number of our unique words in our entire \textit{corpus}, which is the size of the \textit{vocabulary} used by the \textit{bag-of-words} model. Each component of a vector is clearly assigned to a word from the \textit{vocabulary}. The exact values of the vector components are created when a document is \textit{vectorized}. For each \textit{word}, the occurrence frequency in the document is counted and stored in the associated vector component as shown in \cref{cbowTable}. 
+
+\begin{figure}[h!]
+\centering
+\begin{tabular}{ |p{2cm}||p{2cm}|p{2cm}|p{2cm}| p{2cm} | }
+ \hline
+  & Term 1 & Term 2 & ... & Term N  \\
+ \hline
+ Document 1   & 3 & 0 &  ... &  2 \\
+ Document 2&   0  & 5 & ...  &1 \\
+ ... & ... & ... & ...& ...\\
+ Document N   &2 & 1& ... & 0\\
+ \hline
+\end{tabular}
+\caption{\textit{Bag-of-words model} - The column headers contain the unique words from our \textit{vocabulary}. The table has a separate row for each document. Each column stores the frequency with which a term occurs in each document.}
+\label{cbowTable}
+\end{figure}
+
+Using the resulting row vectors (document vectors) from \cref{cbowTable}, we can construct our \textit{vector space} for the search. User queries need to be \textit{vectorized} in the same way (word counts per term over the entire vocabulary) so that we can then use \textit{cosine similarity} to find matching documents in the \textit{vector space}. 
+
+As can be seen in \cref{cbowTable}, a small number of documents can result in \textit{sparse vectors} (vectors with many zero components). \textit{Sparse vectors} take up an unnecessary amount of memory. To implement a \textit{bag-of-words} model efficiently, it is often done in the form of an \textit{inverted index}. An \textit{inverted index} stores a tuple consisting of a \textit{document id} and the occurrence count for each term. If a term does not occur in a document, it is not stored for the current term.
+
+However, simply counting the words in a document for \textit{information retrieval} can be problematic. The vectors obtained in this way do not take into account the \textit{importance} or \textit{rarity} of a \textit{word} in the entire document. Texts often consist of many words that do not contribute much to the information content of the document; these words are referred to as \textit{stopwords}. A first extension of the \textit{bag-of-words} model is \textit{tf-idf}, short for \textit{Term Frequency Inverse Document Frequency} \cite[pp.~7ff]{informationRetrievalgoker}. The goal of \textit{tf-idf } is to calculate some relevance for document with respect to a user query. \textit{Tf-idf} adds a weighting to each word of the \textit{vector representation} to capture the meaning of a word in a document relative to the frequency of the word in the entire corpus (all documents). 
+
+\begin{align}
+\begin{split}
+	tfidf_{t,d} &= tf_{t,d} \cdot idf_{t,D}\\[0.25\baselineskip]
+	\text{where:}\\ 
+    t &= \text{Term (word,)}\\
+	d &= \text{document,}\\ 
+	D &= \text{corpus (all documents.)}
+\end{split}
+\end{align}
+
+
+\textit{Term Frequency} counts the number of times a word appears in a document, with higher occurrences being more significant. The \textit{term frequency} is then normalised to obtain the relative frequency, considering the length of the document.
+
+\begin{align}
+\begin{split}
+	tf_{t,d} &= \frac{\sum_{t: t \in d}1}{\sum_{i=1}^{|d|}1}\\[0.25\baselineskip]
+	\text{where:}\\
+	t: t \in d &= \text{term (word) in document,}\\ 
+    |d| &= \text{length of the document (all terms).}\\ 
+\end{split}
+\end{align}
+
+\textit{Inverse Document Frequency} counts how often the word occurs in the entire corpus. 
+
+\begin{align}
+\begin{split}
+	idf_{t,D} &= log\frac{N}{\sum_{D: t \in D} 1}\\[0.25\baselineskip]
+	\text{where:}\\
+	N &= \text{number of documents,}\\ 
+	D: t \in D &= \text{term (word) in document.}
+\end{split}
+\end{align}
+
+If a word occurs frequently in the entire corpus, it is possibly a \textit{stopword} and must be weighted lower. \textit{Tf-idf} considers the length of a document, as longer documents contain more words, resulting in certain words appearing more frequently than in shorter documents. If a long document and a short document have the same \textit{Tf-idf} score, the long document is weighted lower.
+
+One problem with \textit{tf-idf} is that \textit{term frequency (tf)} has a very strong influence on the resulting \textit{relevance scores}. If a word from a user query occurs very often in two different documents from the corpus, we do not know whether the document in which it occurs more often is actually more relevant to the query in the end. \textit{BM25 (best match 25)} is an improved ranking model that takes this into account by calculating the $\log$ of \textit{tf}. The $\log{tf}$ in \textit{BM25} rewards term frequency at low values like \textit{tf-idf}, and as the \textit{tf} increases, this reward flattens out.
+
+\begin{align}
+\begin{split}
+	BM25(Q,D) &= \sum_{i=1}^{n}IDF(q_{i})\cdot\frac{TF(q_{i},D)\cdot(k+1)}{TF(q_{i,D})+k\cdot(1-b+b\cdot\frac{|D|}{avgdl})}\\[0.25\baselineskip]
+	\text{where:}\\
+	Q &= \text{user query,}\\ 
+	D &= \text{document,}\\
+    n &= \text{number of terms in query,}\\
+    q &= \text{actual term,}\\
+    |D| &= \text{document length,}\\
+    avdgl &= \text{average document length,}\\
+    \text{k and b} &= \text{are hyperparameters.}\\
+\end{split}
+\end{align}
+
+\subsubsection*{Dense vector representation}
+In \textit{sparse vectors} as described above, we look for an exact \textit{term match} and describe documents by terms and how important they are to the document. However, these \textit{sparse vectors} do not encode any \textit{semantic characteristics}. This can quickly lead to problems if keywords are not included in a query to find the relevant document we are looking for. \textit{Sparse vector search} relies heavily on a exact term match to find relevant documents.
+
+To represent \textit{semantic characteristics} without relying too heavily on keywords, we utilise machine learning models to learn and encode \textit{dense vectors}. In order to learn these vectors through machine learning models, we make use of the \textit{distributional semantics theory} \cite{distributionalSemanticsTheory}.
+According to the \textit{distributional semantics theory}, words that appear in similar contexts tend to have a similar meaning.
+
+The \textit{Word2vec} models help to explain how the \textit{distributional semantics theory} was used to obtain \textit{dense vectors} encoded with \textit{semantic meaning} \cite{word2vec}. \textit{Word2vec} utilises two simple artificial neural network architectures: \textit{Continuous bag of words (CBOW)} and the \textit{skip-gram} model. \textit{CBOW} takes a sentence with a masked word as input and predicts the masked word based on the context.  The \textit{skip-gram} model, on the other hand, predicts the context words given a word. Both models learn to represent words in relation to their context.
+However, the word vectors learned in this way have a limitation. Each word has only one representation. In \textit{natural language}, however, the same words can have different meanings, which also depend on the context and word order. \textit{Transformer} models, as used in this work, take advantage of the position of a word (\textit{positional encoding}) in a sentence to better understand the meaning of the word in a given context and to allow different representations of the same word \cite{attentionIsAllYouNeed}. This section explains how the \textit{encoder} part of the \textit{transformers} learns its \textit{embeddings}\footnote{The term \textit{embeddings} or \textit{word embeddings} is frequently used when referring to data that has been encoded in lower-dimensional \textit{vector space}.}, which will be used for \textit{information retrieval} later.\\
+\\
+In order for the \textit{encoder} to process text in string form, it is necessary to convert it into numerical values. This is achieved by \textit{tokenizing}\footnote{\textit{Tokenization} is the process of splitting text into smaller units called \textit{tokens}.} the documents at the start. \textit{Tokenization} is carried out by a \textit{tokenizer} that learns how to split texts.  The rules that the \textit{tokenizer} learns to split the text determine the \textit{vocabulary}. Texts are often divided into \textit{sub-words}. In the original \textit{BERT} paper, \textit{WordPiece} was used for \textit{tokenization}, which generated a \textit{vocabulary} of 30,000 \textit{tokens} \cite{bert}. Each \textit{token} is assigned a unique, nurmeric id.
+After \textit{tokenization}, the resulting ids are transformed into vectors using an \textit{embedding layer} \cite[p.~65]{huggingface}. This layer acts as a \textit{lookup table}, assigning a vector to each token id. The \textit{embedding layer} is essentially a matrix with dimensions equal to the \textit{vocabulary size} and \textit{target size} of our vectors.
+Next, \textit{positional encoding} is added, a mechanism to better understand the word order of the input. There are different ways to add \textit{positional encoding} to the \textit{embedded vectors}. The original \textit{transformer} used \textit{sine} and \textit{cosine functions} of different frequencies. To add \textit{positional encodings} to the \textit{embedded vectors}, we create for each input word another vector of the same dimension as the \textit{embedded vectors}. The vector components are defined by a formula (\ref{positionalEncoding}) that takes into account the alternation of \textit{sine} and \textit{cosine curves}.  Each component is represented by a separate \textit{sinusoid}, with even-indexed components represented by a \textit{sine function} and odd-indexed components represented by a \textit{cosine function}. The position of the word in the input determines the part of the \textit{sinusoid} from which the values are taken.
+
+\begin{align}
+\begin{split}
+	PE_{(pos,2i)} = sin(pos / 10000^{2i/d}) \\[0.25\baselineskip]
+    PE_{(pos,2i+1)} = cos(pos / 10000^{2i/d}) \\[0.25\baselineskip]
+    \text{where d = dimension of embedded vector.}
+\end{split}
+\label{positionalEncoding}
+\end{align}
+
+The vectors generated represent the \textit{position} of the words in the input relative to the rest of the input. These vectors are then added to the \textit{embedded vectors}.
+
+In \cite{attentionIsAllYouNeed}, the generated vectors are fed into a \textit{multi-head attention} block comprising several \textit{self-attention mechanisms}. The \textit{self-attention mechanism} involves creating three representations of each \textit{embedded vector} by passing them through a \textit{linear layer}. These \textit{triplets} are referred to as \textit{Key (K)}, \textit{Query (Q)}, and \textit{Value (V)}. The \textit{attention weights} are then calculated using the \textit{scaled dot-product} formula based on this new representation. The \textit{scaled dot-product} formula takes the \textit{dot-product} of the \textit{query} and \textit{key} representations, producing \textit{attention scores}, which are then scaled by the dimension of the vectors to avoid large values during training \cite[pp.~62ff]{huggingface}.  Finally, the \textit{scaled attention scores} are normalised using a \textit{softmax function}. The \textit{attention weights} obtained are then multiplied by the corresponding \textit{value representation} of the \textit{triplet}.
+
+\begin{align}
+\begin{split}
+	Attention(Q,K,V) = softmax(\frac{QK^{T}}{\sqrt{d}})V \\
+    \text{where d = dimension of vector.}
+\end{split}
+\label{attentionFormula}
+\end{align}
+
+This process defines a single \textit{attention head}. The advantage of \textit{multiple attention heads} is, to be able to focus on various \textit{semantic characteristics} of the input. The mechanism is comparable to that of \textit{convolutional neural networks}, where the filters learn to detect different types of edges in images. 
+
+When multiple \textit{attention heads} are used, their outputs are concatenated so that we again obtain a single representation. To prevent this from becoming too large, the output dimension of the \textit{attention heads} can be a factor of the dimension of the input vectors. \textit{BERT}, for example, uses 12 \textit{attention heads} with a vector dimension of 768. The partial output dimensions of the \textit{attention heads} then have the dimension $768/12 = 64$ \cite{attentionIsAllYouNeed}.
+
+After our \textit{embeddings} have been processed by the \textit{multi-head attention} Block, we receive so-called \textit{contextualised embeddings} for each \textit{token} of the input sequence. The \textit{contextualized embeddings} are then processed independently by a normal \textit{feed forward network}. 
+
+The output is an \textit{embedded vector} for each \textit{token} in the input sequence. As the input sequences can vary in length, the output will have a corresponding number of vectors. In order to be able to perform the search in \textit{vector space}, however, we want to represent our input (documents and queries) with just a single vector. To obtain a single vector representation, a pooling operation, such as \textit{mean pooling}, can be performed over the vectors. This results in single values for each dimension in the final vector representation.
+
+BERT is a model that is suitable for representing natural language. \textit{BERT} is often extended with task-specific heads, e.g. for \textit{classification} or \textit{sentiment analysis}. Another use case is to compare a pair of inputs for \textit{similarity}, as required in \textit{information retrieval}. To achieve this, both inputs must be fed into the model simultaneously, allowing the \textit{attention heads} to work on them in parallel (\textit{cross-attention}). However, this process has proven to be computationally intensive \cite{sentenceBert}. In \cite{sentenceBert}, an architectural modification called \textit{SBERT (Sentence BERT)} is proposed that reduces this computational overhead while maintaining the same accuracy. \textit{SBERT} uses a \textit{siamese network structure}, in which weights are shared to generate input \textit{embeddings} separately. These embedded inputs can then be compared using \textit{cosine similarity}.
+
+In addition, \textit{SBERT} was \textit{fine-tuned} with a \textit{multiple negative ranking loss}. It ensures that the \textit{vector representations} are optimized for \textit{semantic similarity}. With the \textit{multiple negative ranking loss}, we have a triplets consisting of three input sentences. One is called the \textit{anchor}. In addition, we have a similar sentence (\textit{positive sentence}) to the \textit{anchor} and an opposite sentence (\textit{negative sentence}) to the anchor. The objective of the \textit{multiple negative ranking loss} is to produce \textit{vector representations} that bring the \textit{anchor} and the \textit{positive sentence} closer together in the \textit{vector space} while pushing the \textit{negative sentence} further away.
+
+
+\subsubsection{Retrieving relevant document vectors} \label{retrieving}
+In \cref{text2vector} we learnt how to convert vectors into meaningful representations in order to search for them in a \textit{vector space}. In this section, we will look at how to retrieve relevant document vectors that are close to a query vector, to achieve satisfactory results.
+
+% vector search
+\begin{figure}[H]
+    \centering
+\begin{tikzpicture}[scale=0.6]
+\draw[color=red, fill=red!5, dashed](3.3,3.3) circle (1.7);
+\draw[lightgray] (-1,-1) grid (6, 6);
+
+% axis
+\coordinate (xStart) at (-0.5, 0);
+\coordinate[label=$x$] (xEnd) at (5.5, 0);
+\coordinate (yStart) at (0, -0.5);
+\coordinate[label=$y$] (yEnd) at (0, 5.5);
+
+\draw[-Stealth, line width=1.5pt] (xStart) -- (xEnd);
+\draw[-Stealth, line width=1.5pt] (yStart) -- (yEnd);
+
+
+\filldraw[color=red, fill=red](3.3,3.3) circle (0.1);
+\filldraw[color=blue, fill=blue](1.3,1) circle (0.1);
+\filldraw[color=blue, fill=blue](1.5, 3) circle (0.1);
+\filldraw[color=blue, fill=blue](0.5, 0.8) circle (0.1);
+\filldraw[color=blue, fill=blue](5,5) circle (0.1);
+\filldraw[color=blue, fill=blue](4.5,2) circle (0.1);
+\filldraw[color=blue, fill=blue](3, 4.7) circle (0.1);
+\filldraw[color=blue, fill=blue](4,0.5) circle (0.1);
+\filldraw[color=blue, fill=blue](4,3) circle (0.1);
+
+\end{tikzpicture}
+\caption{Here we can see a simplified 2-dimensional search space. The blue dots represent our documents, the red dot represents a user query. The goal of a search in the \textit{vector space} is to find documents that are close to a user query.}
+\label{vectorSpaceSearch}
+\end{figure}
+
+In \cref{vectorSpaceSearch} we see a simplified representation of \textit{vector search} in a 2-dimensional \textit{vector space}. The blue dots represent \textit{vectorized} documents and the red dot represents a user query. The goal of a \textit{vector search} is to retrieve nearby documents, shown here as a red search radius.
+
+\subsubsection*{Distance measures}
+There are several different metrics to compute a score for vector similarity. \textit{Chroma}, the \textit{vector store} used in this project, offers three different metrics: \textit{cosine similarity}, the \textit{inner product} of two vectors and the \textit{euclidean norm ($\ell^{2}$-norm)}. In order to use and evaluate these correctly, it is important to understand how they work.
+
+To calculate the \textit{\textbf{cosine similarity}} between two given vectors $\vec{a}$ and $\vec{b}$, we calculate the angle $\theta$ between $\vec{a}$ and $\vec{b}$ as we can see in \cref{cosineSimilarityFigure}. The cosine of $\theta$ is then calculated to obtain an \textit{similarity score} for the two vectors $\vec{a}$ and $\vec{b}$.
+
+\begin{align}
+	 \cos{\theta} = \frac{\vec{a} \cdot \vec{b}}
+  {||\vec{a}|| \cdot ||\vec{b}||}
+\end{align}
+Cosine has the property that the cosine of equal vectors is 1 and 0 if they are orthogonal \cite{SimilaritiesVectorSpaceModel}. Therefore, if we want to obtain matching documents for our query, we look for \textit{cosine similarity scores }that are close to 1.
+
+% cosine similarity figure
+\begin{figure}[H]
+    \centering
+\begin{tikzpicture}[scale=0.6]
+\draw[lightgray] (-1,-1) grid (6, 6);
+
+% vectors
+\coordinate (origin) at (0, 0); % origin
+\coordinate[label=$\Vec{b}$] (a) at (2, 3); % vector b
+\coordinate[label=$\Vec{a}$] (b) at (4, 1); % vector a
+% axis
+\coordinate (xStart) at (-0.5, 0);
+\coordinate[label=$x$] (xEnd) at (5.5, 0);
+\coordinate (yStart) at (0, -0.5);
+\coordinate[label=$y$] (yEnd) at (0, 5.5);
+
+\draw[-Stealth, line width=1.5pt] (xStart) -- (xEnd);
+\draw[-Stealth, line width=1.5pt] (yStart) -- (yEnd);
+\draw[-{Stealth[scale=1]}, blue] (origin) -- (a); % draw vector a
+\draw[-{Stealth[scale=1]}, red] (origin) -- (b); % draw vector b
+
+% angle
+\tkzMarkAngle[green](b,origin,a);
+\tkzLabelAngle[pos=0.5](b,origin,a){$\theta$};
+
+\end{tikzpicture}
+\caption{In this figure we have the two vectors $\vec{a}$ (red) and $\vec{b}$ (blue). Between them we have the angle $\theta$ (green). We calculate the cosine of $\theta$ to get our \textit{similarity score} of $\vec{a}$ and $\vec{b}$.}
+\label{cosineSimilarityFigure}
+\end{figure}
+
+To illustrate this in an example, let's look at the three sentences \textit{"Hello World"}, \textit{"Hello Mars"} and \textit{"Transformers are awesome"} and calculate the \textit{similarity score} between them using \textit{cosine similarity}. To obtain vectors for these three sentences, we embed them with an \textit{encoder transformer model}. We then use the \textit{cosine similarity} formula to calculate the \textit{similarity score} between them. As we can see in \cref{cosineSimilarityHeatmap}, the \textit{cosine similarity} for identical sentences is 1, for similar sentences it is less than 1 and the more dissimilar they are, the closer the score is to 0.
+
+% cosine similarity confusion matrix
+\begin{figure}[H]
+    \centering
+\begin{tikzpicture}[
+    box/.style={draw,rectangle,minimum size=1cm,text width=0.7cm,align=left},
+    bottomlabel/.style = {circle, draw, minimum size=1cm}
+]
+\matrix (conmat) [row sep=.1cm,column sep=.1cm] {
+% row 1
+\node () [box, fill=red, label=left:Hello World] {1};
+&
+\node () [box, fill=red!60] {0.6};
+&
+\node () [box, fill=red!15] {0.15};
+\\
+% row 2
+\node () [box, fill=red!60, label=left:Hello Mars] {0.6};
+&
+\node () [box, fill=red] {1};
+&
+\node () [box, fill=red!17] {0.17};
+\\
+% row 3
+\node () [box, fill=red!15, label=left:Transformers are awesome, label={[yshift=-35pt, rotate=90]below:Hello World}] {0.15};
+&
+\node () [box, fill=red!17,label={[yshift=-35pt, rotate=90]below:Hello Mars}] {0.17};
+&
+\node () [box, fill=red, label={[yshift=-65pt, rotate=90]below:Transformers are awesome}] {1};
+\\
+};
+
+\end{tikzpicture}
+\caption{In this \textit{heatmap (confusion matrix)}, we can see that identical sentences receive a score of 1. If the sentences are slightly different, such as \textit{"Hello World"} and \textit{"Hello Mars"}, the score decreases. The less similar the sentences are, the closer the score gets to 0. So we know that \textit{cosine similarity scores} can be between 1 and 0.}
+\label{cosineSimilarityHeatmap}
+\end{figure}
+
+The \textit{\textbf{inner product}} of two vectors $\vec{a}$ and $\vec{b}$ is a generalised form of the \textit{dot product}. It is calculated by multiplying the components of vectors $\vec{a}$ and $\vec{b}$ and then summing the result.
+
+\begin{align}
+	 ip = \sum_{i=1}^{n}{a_{i} \cdot b_{i}} \text{, with } a_{i} \in \vec{a} \text{ and } b_{i} \in \vec{b}
+\end{align}
+
+\cref{innerProductFigure} demonstrates how scores are derived from the \textit{inner product} geometrically. In \cref{innerProductFigure}, the similarity with vector $\vec{a}$ is calculated using vectors $\vec{b}$ and $\vec{c}$. The vectors $\vec{b}$ and $\vec{c}$ are projected onto vector $\vec{a}$, and the length of the resulting projection determines the \textit{similarity score} of the \textit{inner product} \cite[pp.~10ff]{linearAlgebra}. It is evident that vectors that are farther apart produce smaller projections and, therefore, have a lower score. For vectors of equal length, the \textit{inner product} results in identical values as the \textit{cosine similarity}.
+
+% inner product figure
+\begin{figure}[H]
+    \centering
+\begin{tikzpicture}[scale=0.6]
+\draw[lightgray] (-2,-2) grid (5, 5);
+
+% vectors
+\coordinate (origin) at (0, 0); % origin
+\coordinate[label=$\Vec{b}$] (b) at (2, 3); % vector b
+\coordinate[label=$\Vec{a}$] (a) at (4, 1); % vector a
+\coordinate[label=$\Vec{c}$] (c) at (2.5, -1.5); % vector c
+% inner product
+\coordinate (ip) at (2.7, 0.68);
+\coordinate[label=$scores$] (ip2) at (1.6, 0.4);
+% axis
+\coordinate (xStart) at (-1.5, 0);
+\coordinate[label=$x$] (xEnd) at (4.5, 0);
+\coordinate (yStart) at (0, -1.5);
+\coordinate[label=$y$] (yEnd) at (0, 4.5);
+
+\draw[-Stealth, line width=1.5pt] (xStart) -- (xEnd);
+\draw[-Stealth, line width=1.5pt] (yStart) -- (yEnd);
+\draw[-{Stealth[scale=1]}, red] (origin) -- (a); % draw vector b
+\draw[-{Stealth[scale=1]}, blue] (origin) -- (b); % draw vector a
+\draw[-{Stealth[scale=1]}, orange] (origin) -- (c); % draw vector c
+\draw[dashed, blue, line width=1.5](b) -- (ip);
+\draw[blue, line width=1.5](origin) -- (ip);
+\draw[dashed, orange, line width=1.5](c) -- (ip2);
+\draw[orange, line width=1.5](origin) -- (ip2);
+
+
+\tkzLabelSegment[right, blue](b,ip){$projection$}
+\tkzLabelSegment[right, orange](c,ip2){$projection$}
+
+\end{tikzpicture}
+\caption{This figure shows geometrically how the \textit{inner product} \textit{similarity scores} are calculated. The similarities between vectors $\vec{a}$ and $\vec{b}$ and vectors $\vec{a}$ and $\vec{c}$ are calculated. Vectors $\vec{b}$ and $\vec{c}$ are projected onto $\vec{a}$. The length of the respective projection on the vector $\vec{a}$ then determines the \textit{inner product similarity score}.}
+\label{innerProductFigure}
+\end{figure}
+
+The \textbf{\textit{Euclidean distance}}, or \textit{Euclidean norm ($\ell^{2}$-norm)}, can be used to measure the distance between vectors in a \textit{vector space}. To calculate the \textit{Euclidean distance} between the vectors $\Vec{a}$ and $\vec{b}$, the length of a vector $\vec{c}$ is calculated. Vector $\vec{c}$ starts from vector $\vec{a}$ and points to the end of vector $\vec{b}$ as shown in \cref{euclideanSimilarityFigure}. This gives the following formula:
+
+\begin{align}
+	 d = \sqrt{\sum_{i=1}^{n}{a_{i} - b_{i}}} 
+  \text{, with } a_{i} \in \vec{a} \text{ and } b_{i} \in \vec{b}.
+\end{align}
+
+% euclidean distance figure
+\begin{figure}[H]
+    \centering
+\begin{tikzpicture}[scale=0.6]
+\draw[lightgray] (-1,-1) grid (6, 6);
+
+% vectors
+\coordinate (origin) at (0, 0); % origin
+\coordinate[label=$\Vec{b}$] (a) at (2, 3); % vector b
+\coordinate[label=$\Vec{a}$] (b) at (4, 1); % vector a
+% axis
+\coordinate (xStart) at (-0.5, 0);
+\coordinate[label=$x$] (xEnd) at (5.5, 0);
+\coordinate (yStart) at (0, -0.5);
+\coordinate[label=$y$] (yEnd) at (0, 5.5);
+
+\draw[-Stealth, line width=1.5pt] (xStart) -- (xEnd);
+\draw[-Stealth, line width=1.5pt] (yStart) -- (yEnd);
+\draw[-{Stealth[scale=1]}, blue] (origin) -- (a); % draw vector a
+\draw[-{Stealth[scale=1]}, red] (origin) -- (b); % draw vector b
+\draw[-{Stealth[scale=1]}, dashed, orange] (b) -- (a); % draw vector b
+
+% angle
+\tkzLabelSegment[right=3pt, above=2pt, orange](a,b){$\vec{c}$};
+
+\end{tikzpicture}
+\caption{The \textit{Euclidean distance} measures the distance between two vectors $\vec{a}$ and $\vec{b}$. The distance can be represented by a vector $\vec{c}$ whose length must be calculated to determine the distance between $\vec{a}$ and $\vec{b}$.}
+\label{euclideanSimilarityFigure}
+\end{figure}
+
+Unlike \textit{cosine similarity} or the \textit{inner product}, smaller values for \textit{Euclidean distance} mean a better \textit{similarity score} because it measures the actual distance between two vectors.
+
+\subsection{Generating text}
+After our \textit{retriever} (model that embeds documents and queries) has retrieved relevant documents with the help of a \textit{similarity function}, it is now time to generate text based on these documents that answers the user query. This is done by another \textit{language model}. The model receives the documents and the user query in a structured (\textit{prompt}) form in order to answer the question. The \textit{language model} uses the \textit{decoder} architecture of the original \textit{transformer} \cite{GPT1}\footnote{This does not always have to be the case. \textit{T5} \cite{T5} from \textit{Google}, for example, is a complete \textit{sequence-to-sequence transfomer}.} and, as indicated in \cref{Introduction}, the goal of the \textit{language model} is to predict the next most probable \textit{token} given the input sequence. 
+
+\begin{align}
+	 p(x)=\Pi_{i=1}^{n}p(s_{n}|s_{1},...,s_{n-1})
+\end{align}
+
+This \textit{language model} can also be seen as a document completion engine, it receives a sequence of tokens as input and generates new tokens until it predicts an \textit{end-of-sequence token (EOS)}. This is an interative task because until the model predicts the \textit{eos-token}, all previous generated \textit{tokens} are appended to the input sequence and the next \textit{token} in the sequence is predicted. Through special \textit{task-specific fine-tuning}, the model learns a \textit{probability distribution} over the \textit{token vocabulary} that matches more likely our task.
+
+\section{Methodology} \label{Methodology}
+This section of the report describes the practical part of the project. As presented in \cref{RAG}, several components work together to implement a complete \textit{RAG system}. Only the most important parts of the implemented code are described.
+
+\subsection{Components}
+Python classes have been implemented for the \textit{retrievers (encoder and bm25)} and for the \textit{causal language model (decoder)}.  For components working on the basis of a neural algorithm, a \colorbox{lightgray!25}{\lstinline{__call__}} method was implemented to allow simple inference calls.
+In addition, a separate \textit{vector store} has been implemented from scratch to make \textit{hybrid search} easier to handle.
+
+\subsubsection{Encoder and BM25/ Retriever}
+\subsubsection*{Encoder}
+The \colorbox{lightgray!25}{\lstinline|EncoderModel|} class is responsible for \textit{embedding} and \textit{searching} in the \textit{dense vector space}. It is initialized with a \colorbox{lightgray!25}{\lstinline{model_id}} and an optionally \colorbox{lightgray!25}{\lstinline{device}} parameter which determines on what \textit{device} (\colorbox{lightgray!25}{\lstinline{cpu}} or \colorbox{lightgray!25}{\lstinline{cuda:<Index>}}) the model should work on.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+class EncoderModel:
+    def __init__(self, model_id, device=None):
+        self.model_id = model_id
+        fallback_device = "cuda" if torch.cuda.is_available() else device
+        self.device = device if device else fallback_device
+\end{lstlisting}
+
+The \colorbox{lightgray!25}{\lstinline{__call__}} function implements the inference call.  The input document is \textit{tokenized} and the model creates the \textit{token embeddings}. Mean pooling is performed on the \textit{token embeddings} to obtain the \textit{document embeddings}. The \textit{document embeddings} are then \textit{normalized}.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def __call__(self, document):
+    tokenized_document = self.tokenize(document)
+    outputs = self.model_inference(tokenized_document)
+    embeddings = self.mean_pooling(
+        outputs, tokenized_document["attention_mask"]
+    )
+    torch.cuda.empty_cache()
+    return F.normalize(embeddings, p=2, dim=1).cpu().numpy()
+\end{lstlisting}
+
+\subsubsection*{BM25}
+The \colorbox{lightgray!25}{\lstinline{BM25Model}} uses the \colorbox{lightgray!25}{\lstinline{BM25Okapi}} algorithm from the \colorbox{lightgray!25}{\lstinline{rank_bm25}} package to search and embed in the \textit{sparse vector space}. The class is initialised without specifying any parameters. The important methods of this class include the \colorbox{lightgray!25}{\lstinline{add_documents}} and \colorbox{lightgray!25}{\lstinline{search}} functions. The \colorbox{lightgray!25}{\lstinline{add_documents}} function initializes the \colorbox{lightgray!25}{\lstinline{BM25Okapi}} algorithm. Before this, the function cleans the document using a \colorbox{lightgray!25}{\lstinline{WordNetLemmatiser}} from the \colorbox{lightgray!25}{\lstinline{nltk}} package and tokenizes the document into words using the \colorbox{lightgray!25}{\lstinline{word_tokenize}} function from the \colorbox{lightgray!25}{\lstinline{nltk}} package.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def add_documents(self, documents):
+    cleaned_docs = self.clean_documents(documents)
+    self.bm25 = BM25Okapi(cleaned_docs)
+\end{lstlisting}
+
+The \colorbox{lightgray!25}{\lstinline{search}} function of the \colorbox{lightgray!25}{\lstinline{BM25Model}} class receives a query as input and \textit{cleans} and \textit{tokenizes} it in the same way as the \colorbox{lightgray!25}{\lstinline{add_documents}} function. The \textit{bm25 scores} are then calculated on the \textit{tokenized corpus} and returned.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def search(self, query):
+    cleaned_query = self.clean_string(query)
+    scores = self.bm25.get_scores(cleaned_query)
+    return scores
+\end{lstlisting}
+
+\subsubsection{Decoder/ Autoregressive model}
+The \colorbox{lightgray!25}{\lstinline{DecoderModel}} class is responsible for the \textit{causal language model} and therefore for \textit{generating answers}. The class is initialised via the \colorbox{lightgray!25}{\lstinline{model_id}} parameter and the optional \colorbox{lightgray!25}{\lstinline{generation_config}} and \colorbox{lightgray!25}{\lstinline{device}} parameters.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+class DecoderModel:
+    def __init__(self, model_id, generation_config=None, device=None, 
+        **kwargs):     
+        assert isinstance(
+        generation_config, 
+        GenerationConfig) or generation_config is None
+        self.model_id = model_id
+        self.device = device if device else "auto"
+        ... # Initialize model and tokenizer
+        self.tokenizer.chat_template = self.get_jinja_tempalte()
+        self.generation_config=generation_config if generation_config 
+            else self.default_generation_config()
+\end{lstlisting}
+
+The \colorbox{lightgray!25}{\lstinline{tokenizer}} is applied a \textit{jinja-template} in the \textit{constructor}, which configures the \textit{prompt structure} for the model to perform the task. After applying the \textit{template}, \textit{prompts} will be structured like this: 
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+"""
+<|system|>
+Use the following pieces of context to answer the question at the end. 
+If you can not answer the question from the given context, 
+just reply with 'I do not know'. Do not try to make up an answer.
+<|context|>
+{context}
+<|question|>
+{question}
+<|assistant|>
+"""
+\end{lstlisting}
+
+A default \colorbox{lightgray!25}{\lstinline{generation_configuration}} is also created. The number of new \textit{tokens} to be generated is limited to \colorbox{lightgray!25}{\lstinline{150}}.The parameter \colorbox{lightgray!25}{\lstinline{no_repeat_ngram_size}} is used to ensure that no identical \textit{strings} of three words are repeated. This is particularly important as \textit{large language models} tend to repeat themselves.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def default_generation_config(self):
+    gen_cfg = GenerationConfig.from_pretrained(self.model_id)
+    gen_cfg.max_new_tokens = 150
+    gen_cfg.pad_token_id = self.tokenizer.pad_token_id
+    gen_cfg.begin_suppress_tokensrepetition_penalty = 5
+    gen_cfg.no_repeat_ngram_size = 3
+    return gen_cfg
+\end{lstlisting}
+
+The function responsible for generating answers is \colorbox{lightgray!25}{\lstinline{__call__}}.   It takes a \textit{question} and a \textit{list} of \textit{contexts} as input and applies the \textit{prompt structure} as described above. The received \textit{prompt} is \textit{tokenized} using the \colorbox{lightgray!25}{\lstinline{tokenizer}} and then fed into the \textit{language model} to generate an answer.
+The generated answer is saved in the \colorbox{lightgray!25}{\lstinline{answer}} variable, which includes the \textit{prompt tokens} and up to 150 \textit{new tokens} (as configured). To \textit{decode} the generated answer, only the \textit{newly generated tokens} are passed to the \colorbox{lightgray!25}{\lstinline{tokenizer}} by \colorbox{lightgray!25}{\lstinline{outputs[0][len(tokenized_prompt.input_ids[0]):]}}.
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def __call__(self, question, context):
+    prompt = self.construct_rag_prompt(question, context)
+    tokenized_prompt = self.tokenize(prompt)
+    outputs = self.model.generate(
+        **tokenized_prompt, 
+        generation_config=self.generation_config
+    )
+    answer = self.tokenizer.decode(
+        outputs[0][len(tokenized_prompt.input_ids[0]):]
+    )
+    return answer
+\end{lstlisting}
+
+\subsubsection{Vector store}
+The \colorbox{lightgray!25}{\lstinline{VectorStore}} class is initialised with a \colorbox{lightgray!25}{\lstinline{model_id}} for the \textit{encoder}. The \textit{retriever models} are not located as components in the \textit{inference loop} but are called via the \colorbox{lightgray!25}{\lstinline{VectorStore}} class. In addition to the \colorbox{lightgray!25}{\lstinline{model_id}}, there are also \textit{optional} parameters for \colorbox{lightgray!25}{\lstinline{hybrid}}, \colorbox{lightgray!25}{\lstinline{weight}} and \colorbox{lightgray!25}{\lstinline{distance_metric}}. The parameters \colorbox{lightgray!25}{\lstinline{hybrid}} and \colorbox{lightgray!25}{\lstinline{weight}} relate to the \textit{hybrid search}. The parameter \colorbox{lightgray!25}{\lstinline{hybrid}} is a \textit{boolean} value that determines whether the \colorbox{lightgray!25}{\lstinline{VectorStore}} should enable \textit{hybrid search}, \colorbox{lightgray!25}{\lstinline{weight}} determines how much each \textit{search score} should be considered if \colorbox{lightgray!25}{\lstinline{hybrid}} is set to \colorbox{lightgray!25}{\lstinline{True}}. The \colorbox{lightgray!25}{\lstinline{distance_metric}} determines which metric should be used for the search in the \textit{vector space}; if none is specified, the \textit{cosine similarity} is used by default. Possible values for \colorbox{lightgray!25}{\lstinline{distance_metric}} are \colorbox{lightgray!25}{\lstinline{cosine}}, \colorbox{lightgray!25}{\lstinline{l2}} and \colorbox{lightgray!25}{\lstinline{ip}}.
+
+The \textit{documents} are stored using a \colorbox{lightgray!25}{\lstinline{pandas.DataFrame}} with columns \textit{id}, \textit{text} and \textit{vector}.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+class VectorStore:
+    def __init__(self, model_id, hybrid=False, weight=0.5, 
+            distance_metric=None):
+        self.encoder = EncoderModel(model_id)
+        self.bm25 = BM25Model() if hybrid else None
+        self.documents = pd.DataFrame(columns=["id", "text", "vector"])
+        self.distance_metric = distance_metric
+        self.weight = weight
+\end{lstlisting}
+
+The function \colorbox{lightgray!25}{\lstinline{search}} combines the search functions for the two search paradigms which return the \colorbox{lightgray!25}{\lstinline{top_n}} best scores for each search. The scores of both searches are \textit{normalized} to ensure that they behave the same when combined. 
+
+The scores from both searches are combined using the following formula.
+\begin{align*}
+    score_{hybrid} = (1-weight) \cdot score_{sparse} + weight \cdot score_{dense}
+\end{align*}
+
+The \textit{sparse search} is only executed if the \textit{hybrid search} is activated. The \colorbox{lightgray!25}{\lstinline{search}} function returns the result as a list of \textit{dictionaries} sorted in descending order by best score. Each \textit{dictionary} contains the respective \textit{score}, as well as the \textit{document text} and the \textit{id}.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+def search(self, query, top_n=10):
+    vectorized_query = self.encoder(query)
+    dense_results = self.dense_search(list(vectorized_query), top_n)
+    
+    sparse_results = None
+    if self.bm25:
+        sparse_results = self.sparse_search(query, top_n)
+    hybrid_results = self.merge_results(dense_results, sparse_results)
+    result = [
+        {
+            "score": score, 
+            "document": self.documents.text.values[key], 
+            "id": self.documents.id.values[key]
+        } for key, score in hybrid_results.items()
+    ]
+    return sorted(result, key=lambda x: x["score"], reverse=True)[:top_n]
+\end{lstlisting}
+
+It is \textbf{important} to note that the calculation for score using $\ell^{2}$ has been adjusted. As mentioned in \cref{retrieving}, $\ell^{2}$ measures the distance between vectors, so smaller values are preferable to larger ones. The scores have been \textit{normalized} and then subtracted from 1 so that the $\ell^{2}$ \textit{metric} behaves like the other \textit{search metrics}, where higher scores are better.
+
+\subsubsection{Inference loop}
+The \textit{inference loop} enables components to interact through \textit{nesting}. The two outer loops iterate through lists of model ids for \textit{decoder} and \textit{encoder} models to be tested.
+Another loop tests the \textit{hybrid} and \textit{dense search} for each model combination, followed by iterating through the entire dataset. The search is performed for each \textit{data point} in the dataset using each distance metric. The highest-scoring search result (measured by \textit{ndcg}\footnote{NDCG is described in \cref{metrics}.}) from the various distance metrics is then inputted into the \textit{causal language model} to generate an answer.
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+for causal_id in causal_models:
+    # Initialize causal lm
+    ...
+    for retriever_id in retriever_models:
+        # Initialize VectorStore with retrievers
+        ...
+            for hybrid in [True, False]:
+                # differentiate between hybrid and dense search
+                ...
+                for row in dataset.iterrows():
+                    # iterate through the dataset
+                    ...
+                    for distance_metric in ["cosine", "ip", "l2"]:
+                        # differentiate between distance metrics
+                        # retrieve document with distance
+                        # generate answer from best found contexts
+                    
+\end{lstlisting}
+\subsection{Results}
+\subsubsection{Dataset}
+\paragraph{SQuADv2}
+\textit{Squadv2}\footnote{\href{https://huggingface.co/datasets/squad_v2}{SQuADv2 on huggingface}} is a dataset that extends \textit{SQuADv1}, which comprises 100,000 data points containing an \textit{id}, a \textit{title}, a \textit{context}, a \textit{question}, and \textit{answers}.   \textit{SQuADv2} adds 50,000 examples without \textit{answers}.
+\textit{SQuADv1} is appropriate for testing a system's ability to answer questions based on a given \textit{context}. \textit{SQuADv2} requires the system to determine whether the question can be answered based on the provided context.
+It is important to note that the \textit{answers} provided only consist of bullet points/text snippets. However, the task in this work is to generate \textit{full-text answers} with a \textit{causal language model}. This makes it difficult to evaluate the model based on the answers provided.
+
+\paragraph{Machine Learning by Zhi-Hua Zhou (Book)}
+The book \textit{Machine Learning} by \textit{Zhi-Hua Zhou}\footnote{The book can be found online in the FH SWF \href{https://kai.fh-swf.de/permalink/49HBZ_FSW/ou32r9/alma99370954148406441}{library}.} \cite{mlBook} is used as a second dataset. The book was split into chunks using the \textit{Python package} \colorbox{lightgray!25}{\lstinline{unstructured}}.
+
+\begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+elements = partition(str(file.resolve()))
+
+    text_elements = chunk_by_title(elements)
+    chunks = []
+
+    for element in text_elements:
+        element.apply(
+            partial(
+                clean,
+                bullets=True,
+                extra_whitespace=True,
+                dashes=True,
+                trailing_punctuation=True
+            )
+        )
+        chunks.append(element.text)    
+\end{lstlisting}
+The sections for the \textit{table of contents} and \textit{index} were sorted out, resulting in 2513 chunks for the \textit{RAG system} to work on.
+
+The \textit{RAG system} was evaluated by answering 28 \textit{machine learning} questions related to the books context. A list of these questions can be found in \cref{appendix_a}.
+
+\subsubsection{Models}
+Each combination of the models listed below was tested. In addition, each combination was tested in a \textit{hybrid setup} with \textit{score weight} of 0.5.
+
+\subsubsection*{Retriever}
+"sentence-transformers/all-MiniLM-L6-v2"\\ 
+"BAAI/bge-base-en-v1.5"\\ 
+"WhereIsAI/UAE-Large-V1"\\ 
+"BAAI/bge-m3"
+
+\subsubsection*{Causal models}
+The \textit{causal language models} were all loaded in \colorbox{lightgray!25}{\lstinline{torch.float16}} format.\\
+\\
+"HuggingFaceH4/zephyr-7b-beta" \\
+"google/gemma-7b-it"\\
+"mistralai/Mistral-7B-Instruct-v0.2"\\
+"meta-llama/Llama-2-7b-chat-hf"
+
+\subsubsection{Metrics}\label{metrics}
+First of all, it must be said that evaluating an entire \textit{RAG system} is difficult. This is because evaluating the responses of a \textit{causal language model} alone is difficult, as the answers generated can vary but may have the same meaning. This means that there is no single correct answer. Another problem with evaluating the \textit{causal language model }is that it relies on the performance of the \textit{retriever}, otherwise incorrect contexts will be returned and the model will not be able to answer the user's queries. 
+
+We use different metrics to measure and evaluate the performance of the \textit{language models}. For the \textit{retriever} model, we measure its performance using the \textit{normalized discounted cumulative gain (NDCG)}.
+
+\paragraph{Normalized Discounted Cumulative Gain (NDCG)}
+The \textit{NDCG} is a metric for measuring rankings in which relevant documents are found and suggested \cite{NDCG}. In contrast to other ranking metrics, the \textit{NDCG} enables us to give documents some kind of a continuous \textit{relevance score} based on query, whereas other metrics only allow binary values for relevance.
+
+The \textit{NDCG} puts the resulting ranking in relation to the ideal ranking.
+\begin{align}
+	 NDCG=\frac{DCG}{IDCG}
+\end{align}
+with
+\begin{align*}
+\begin{split}
+	DCG&=\sum_{i=1}^{k}\frac{rel_{i}}{\log_{2}(i+1)}\\[0.25\baselineskip]
+	\text{where:}\\
+	i &= \text{ranking index,}\\ 
+	rel &= \text{relevance score.}
+\end{split}
+\end{align*}
+and \textit{IDCG} is same as \textit{DCG} (resulting ranking order) but with optimal ranking order.
+
+\paragraph{BLEU (Bilingual Evaluation Understudy)} \textit{BLEU} is a metric that is frequently used in \textit{machine translation} \cite{BLEU}. Similar to generating text, as a \textit{RAG system} does, \textit{machine translation} also generates free text, but in a more dependent context.
+
+\textit{BLEU} compares the quality of a translation by searching for identical \textit{n-grams} to evaluate the correspondence between the \textit{machine translation} and a \textit{human translation}.
+
+\paragraph{Language Model as a Judge}
+
+\begin{align}
+\begin{split}
+	BLEU &= BP \cdot \exp(\sum_{n=1}^{N}{w_n\cdot\log p_{n}})\\[0.25\baselineskip]
+	\text{where:}\\ 
+    BP &= \text{brevity of the translation compared to the reference,}\\
+	p &= \text{precision value for n-grams is,}\\ 
+	N &= \text{the maximum n-gram size.)}
+\end{split}
+\end{align}
+
+\paragraph{ROUGE (Recall-Oriented Understudy for Gisting Evaluation)}
+The \textit{ROUGE} metric is mainly used to evaluate machine-generated summaries \cite{ROUGE}. In contrast to \textit{BLEU}, which is often used for the evaluation of \textit{translations}, \textit{ROUGE} focuses on assessing the quality of \textit{text summaries}.
+
+ It takes into account aspects such as the overlap of words, sentences and phrases between the summary and the references. \textit{ROUGE} has different variants such as \textit{ROUGE-N} (for word match) and \textit{ROUGE-L} (for longest common subsequence).
+
+\paragraph{Precision} 
+\textit{Precision} measures the ratio of correctly predicted positive instances to the total number of predicted positive instances. It is a measure of the model's \textit{accuracy} in predicting positive instances.
+
+\begin{align}
+\begin{split}
+	Precision &= \frac{\text{True positives}}{\text{True positives} + \text{False positives}}\\[0.25\baselineskip]
+\end{split}
+\end{align}
+
+\paragraph{Recall}
+\textit{Recall} measures the ratio of correctly predicted positive instances to the total number of actual positive instances. It indicates how many of the actual positive instances the model has correctly identified.
+
+\begin{align}
+\begin{split}
+	Recall &= \frac{\text{True positives}}{\text{True positives} + \text{False negatives}}\\[0.25\baselineskip]
+\end{split}
+\end{align}
+
+\paragraph{F1}
+The \textit{F1 score} is a metric that balances \textit{precision} and \textit{recall}. The \textit{F1 score} is calculated as a \textit{harmonic mean} between \textit{precision} and \textit{recall} and takes into account both \textit{false positive} and \textit{false negative} predictions.
+
+\begin{align}
+\begin{split}
+	F1 &= 2\cdot \frac{\text{precision}\cdot\text{recall}}{\text{precision} + \text{recall}}\\[0.25\baselineskip]
+\end{split}
+\end{align}
+
+\subsubsection{Result}
+
+\subsubsection*{Retriever}
+The values in the table show the \textit{NDCG} scores for the \textit{SQuADv2} dataset. Each combination was tested on 500 examples. The examples were divided into 400 examples with questions that could be answered using a given context and 100 examples whose questions could not be answered using the context provided.
+
+It is noteworthy that model \textit{sentence-transformers/all-MiniLM-L6-v2}, the smallest of the models used, achieved the best scores. The \textit{hybrid search} consistently improved the results for all combinations. It is peculiar to observe that the different distance metrics per model produced identical results.\\
+\\
+\begin{tabular}{ |c|c|c|c|c|c|c|  }
+ \hline
+
+ model& cosine &cosine hybrid&ip&ip hybrid& $\ell^{2}$&$\ell^{2}$ hybrid\\
+ \hline
+ \hline
+ sentence-transformers/all-MiniLM-L6-v2& 0.822904&\textbf{0.873533}&0.822904&\textbf{0.873533}&0.822904&\textbf{0.873533}\\
+ \hline
+ WherelsAl/UAE-Large-V1& 0.857350&0.870450&0.857350&0.870450&0.857350&0.870450\\
+ \hline
+ BAAl/bge-m3& 0.795663&0.859185&0.795663&0.859185&0.795663&0.859185\\
+ \hline
+ BAAI/bge-base-en-v1.5& 0.855504&0.869621&0.855504&0.869621&0.855504&0.869621\\
+ \hline
+\end{tabular}
+
+\subsubsection*{Decoder}\label{mlresult}
+The table shows the scores for the \textit{SQuADv2} dataset. It is important to note that these metrics may not be the most appropriate for evaluating the model, as it generates free text.
+What can be observed is that the \textit{mistralai/Mistral-7B-Instruct-v0.2} performs best in most categories. Only in the recall scores is \textit{HuggingFaceH4/zephyr-7b-beta2} better than \textit{mistralai/Mistral-7B-Instruct-v0.2}. It should be noted that \textit{HuggingFaceH4/zephyr-7b-beta2} is a fine tuned version of \textit{mistralai/Mistral-7B-Instruct-v0.2}.\\
+\\
+\begin{tabular}{ |c|c|c|c|c|c|c|  }
+ \hline
+
+ model& r1 precision &r1 recall&r1 f1&rL precision&rL recall&rL f1\\
+ \hline
+ \hline
+ HuggingFaceH4/zephyr-7b-beta2& 0.024778&\textbf{0.366640}&0.044254&0.022605&\textbf{0.348476}&0.040514\\
+ \hline
+ google/gemma-7b-it& 0.027905&0.183684&0.044423&0.025373&0.173073&0.040591\\
+ \hline
+ meta-llama/Llama-2-7b-chat-h&0.020760&0.289247&0.036523&0.019008&0.272986&0.033484\\
+ \hline
+ mistralai/Mistral-7B-Instruct-v0.2& \textbf{0.040925}&0.238148&\textbf{0.064073}&\textbf{0.032702}&0.204071&\textbf{0.051511}\\
+ \hline
+\end{tabular}
+\\
+\\
+Here, \textit{r1} and \textit{rL} represent \textit{ROUGE-1} and \textit{ROUGE-L}, respectively.
+
+\subsubsection*{Machine Learning book evaluation}
+The complete raw pairs from \textit{context}, \textit{question} and \textit{answer} can be found in \cref{appendix_b}.
+A combination of the best \textit{retriever model (sentence-transformers/all-MiniLM-L6-v)} and the best \textit{causal language model (mistralai/Mistral-7B-Instruct-v0.2)} was used to process the dataset. Overall, it can be said that the \textit{causal language model} was able to answer most of the questions satisfactorily.
+
+What is very noticeable is that the grammar and the general sentence structure have become very poor in the generated answers. This is perhaps due to the fact that the contexts are not trimmed properly and sometimes end or begin in the middle of a word. This could have contributed to the model being "confused" during generation and unable to build good sentence structures. These problems did not occur during the \textit{SQuADv2} experiment, where the contexts were fully included because they were short enough.
+
+In both experiments, it was noticeable that the model struggled to generate the phrase 'I do not know' accurately and produced several grammatically incorrect variations of it.
+
+\newpage
+\subsubsection{Conclusion}
+\textit{RAG} appears to be a promising alternative to address the limitations of \textit{large causal language models}. However, as is often the case in \textit{machine learning}, it is important to ensure the cleanliness of the data, as demonstrated in \cref{mlresult}. The \textit{retrievers} have performed exceptionally well, particularly in the \textit{hybrid} variant. It would be intriguing to compare their performance with that of \textit{commercial embeddings}. To improve results, it may be possible to \textit{fine-tune} the \textit{retriever models} on the given data.
+
+Training the \textit{generative model} can also lead to better results, but it should be noted that the whole system is dependent on the good results of the \textit{retriever}. 
+
+Another component that was not considered here is a \textit{neural reranker} that uses \textit{cross attention} to calculate a similarity between the question and the found contexts and reranks the results.
+
+One problem with the evaluation of \textit{generative language models} is the difficulty in assessing the correctness and semantic similarity of the generated text. of the generated text. One idea could be \textit{Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena} presented in \cite{judge}. \cite{judge} uses another \textit{language model} to evaluate the quality of the system answers. However, caution must be exercised even in this case, as \textit{large language models} can generate unpredictable results and are therefore not always dependable as an evaluation system.
+
+\newpage
+
+\bibliographystyle{plain}
+\bibliography{bibliography}
+
+% Appendix =====================================================
+\newpage
+
+\appendix
+\section{Appendix List of questions}\label{appendix_a}
+\input{appendix_a}
+\newpage
+\section{Appendix Machine Learning questions, contexts and answers}\label{appendix_b}
+%\input{appendix_b}
+
+% bibliography =====================================================
+\newpage
+\bibliographystyle{plain}
+\bibliography{bibliography}
+
+
+\end{document}
