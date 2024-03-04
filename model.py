@@ -101,7 +101,7 @@ class DecoderModel:
         assert isinstance(generation_config, GenerationConfig) or generation_config is None
         self.model_id = model_id
         self.device = device if device else "auto"
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=device, torch_dtype=torch.float16, **kwargs)
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, device_map=self.device, torch_dtype=torch.float16, **kwargs)
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         self.tokenizer.chat_template = self.get_jinja_tempalte()
         self.generation_config=generation_config if generation_config else self.default_generation_config()
@@ -167,7 +167,7 @@ class DecoderModel:
         """
         messages = [
             {"role": "system", "content": """Use the following pieces of context to answer the question at the end. 
-             If you can not answer the question from the given context, just reply with 'I do not know'. Do not try to make up an answer."""},
+             If you can not answer the question from the given context, just say so. Don't make any things up"""},
             {"role": "context", "content": context},
             {"role": "question", "content": question}
         ]
