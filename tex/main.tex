@@ -47,7 +47,7 @@ This work is being done in the context of module \textit{Datenanylse im Unterneh
 \pagenumbering{arabic}
 % Main document ====================================================
 \section{Introduction} \label{Introduction}
-Since the arrival of \textit{ChatGPT}, generative AI algorithms have made their way into the mainstream media and the everyday lives of many\footnote{\href{https://www.reuters.com/technology/chatgpt-sets-record-fastest-growing-user-base-analyst-note-2023-02-01/}{Reuters}: \textit{ChatGPT} sets record for fastest-growing user base} people. Every day, numerous people use the chatbot \textit{ChatGPT} developed by \textit{OpenAI} to make everyday tasks easier. Behind its technological success is an algorithm called \textit{Transformer} \cite{attentionIsAllYouNeed}, an \textit{encoder-decoder} network that can efficiently process long text passages. To be precise, \textit{ChatGPT} utilizes only the \textit{decoder}\cite{GPT1} component of the original \textit{Transformer}.
+Since the arrival of \textit{ChatGPT}, generative AI algorithms have made their way into the mainstream media and the everyday lives of many\footnote{\href{https://www.reuters.com/technology/chatgpt-sets-record-fastest-growing-user-base-analyst-note-2023-02-01/}{Reuters}: \textit{ChatGPT} sets record for fastest-growing user base (visited 04.03.2024)} people. Every day, numerous people use the chatbot \textit{ChatGPT} developed by \textit{OpenAI} to make everyday tasks easier. Behind its technological success is an algorithm called \textit{Transformer} \cite{attentionIsAllYouNeed}, an \textit{encoder-decoder} network that can efficiently process long text passages. To be precise, \textit{ChatGPT} utilizes only the \textit{decoder}\cite{GPT1} component of the original \textit{Transformer}.
 
 In \cite{GPT1, GPT2}, \textit{OpenAI} shows that \textit{language models} can learn different text-based tasks through \textit{generative pre-training (causal language modelling)}. The \textit{generative pre-training} is done on an unlabelled dataset and the goal of the \textit{language model} during \textit{language modelling} is to predict the next \textit{token} given a sequence of \textit{tokens} as input. In \cite{GPT3}, \textit{OpenAI} shows that scaling these \textit{language models} has a significant impact on the capabilities and performance. The capabilities of these models can be improved by further a so-called \textit{instruction fine-tuning} \cite{instructionFineTuning} for specific tasks and by using \textit{reinforcement learning from human feedback} \cite{RLHF} to more closely match the output to human intent.
 
@@ -488,8 +488,8 @@ The \colorbox{lightgray!25}{\lstinline{tokenizer}} is applied a \textit{jinja-te
 """
 <|system|>
 Use the following pieces of context to answer the question at the end. 
-If you can not answer the question from the given context, 
-just reply with 'I do not know'. Do not try to make up an answer.
+If you can not answer the question from the given context, just say so.
+Don't make any things up.
 <|context|>
 {context}
 <|question|>
@@ -497,8 +497,9 @@ just reply with 'I do not know'. Do not try to make up an answer.
 <|assistant|>
 """
 \end{lstlisting}
-
-A default \colorbox{lightgray!25}{\lstinline{generation_configuration}} is also created. The number of new \textit{tokens} to be generated is limited to \colorbox{lightgray!25}{\lstinline{150}}.The parameter \colorbox{lightgray!25}{\lstinline{no_repeat_ngram_size}} is used to ensure that no identical \textit{strings} of three words are repeated. This is particularly important as \textit{large language models} tend to repeat themselves.
+\textbf{NOTE:} In a first experiment, the model was provided with explicit instructions on how to respond if it was unable to generate an answer based on the given context. It was observed that the models struggled to replicate this exact phrasing and made grammatical errors. The prompt template was adjusted to allow the model more freedom in its generated answers.\\
+\\
+During initialization, a default \colorbox{lightgray!25}{\lstinline{generation_configuration}} is also created. The number of new \textit{tokens} to be generated is limited to \colorbox{lightgray!25}{\lstinline{150}}.The parameter \colorbox{lightgray!25}{\lstinline{no_repeat_ngram_size}} is used to ensure that no identical \textit{strings} of three words are repeated. This is particularly important as \textit{large language models} tend to repeat themselves.
 
 \begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
 def default_generation_config(self):
@@ -527,7 +528,7 @@ def __call__(self, question, context):
 \end{lstlisting}
 
 \subsubsection{Vector store}
-The \colorbox{lightgray!25}{\lstinline{VectorStore}} class is initialised with a \colorbox{lightgray!25}{\lstinline{model_id}} for the \textit{encoder}. The \textit{retriever models} are not located as components in the \textit{inference loop} but are called via the \colorbox{lightgray!25}{\lstinline{VectorStore}} class. In addition to the \colorbox{lightgray!25}{\lstinline{model_id}}, there are also \textit{optional} parameters for \colorbox{lightgray!25}{\lstinline{hybrid}}, \colorbox{lightgray!25}{\lstinline{weight}} and \colorbox{lightgray!25}{\lstinline{distance_metric}}. The parameters \colorbox{lightgray!25}{\lstinline{hybrid}} and \colorbox{lightgray!25}{\lstinline{weight}} relate to the \textit{hybrid search}. The parameter \colorbox{lightgray!25}{\lstinline{hybrid}} is a \textit{boolean} value that determines whether the \colorbox{lightgray!25}{\lstinline{VectorStore}} should enable \textit{hybrid search}, \colorbox{lightgray!25}{\lstinline{weight}} determines how much each \textit{search score} should be considered if \colorbox{lightgray!25}{\lstinline{hybrid}} is set to \colorbox{lightgray!25}{\lstinline{True}}. The \colorbox{lightgray!25}{\lstinline{distance_metric}} determines which metric should be used for the search in the \textit{vector space}; if none is specified, the \textit{cosine similarity} is used by default. Possible values for \colorbox{lightgray!25}{\lstinline{distance_metric}} are \colorbox{lightgray!25}{\lstinline{cosine}}, \colorbox{lightgray!25}{\lstinline{l2}} and \colorbox{lightgray!25}{\lstinline{ip}}.
+The \colorbox{lightgray!25}{\lstinline{VectorStore}} class is initialized with a \colorbox{lightgray!25}{\lstinline{model_id}} for the \textit{encoder}. The \textit{retriever models} are not located as components in the \textit{inference loop} but are called via the \colorbox{lightgray!25}{\lstinline{VectorStore}} class. In addition to the \colorbox{lightgray!25}{\lstinline{model_id}}, there are also \textit{optional} parameters for \colorbox{lightgray!25}{\lstinline{hybrid}}, \colorbox{lightgray!25}{\lstinline{weight}} and \colorbox{lightgray!25}{\lstinline{distance_metric}}. The parameters \colorbox{lightgray!25}{\lstinline{hybrid}} and \colorbox{lightgray!25}{\lstinline{weight}} relate to the \textit{hybrid search}. The parameter \colorbox{lightgray!25}{\lstinline{hybrid}} is a \textit{boolean} value that determines whether the \colorbox{lightgray!25}{\lstinline{VectorStore}} should enable \textit{hybrid search}, \colorbox{lightgray!25}{\lstinline{weight}} determines how much each \textit{search score} should be considered if \colorbox{lightgray!25}{\lstinline{hybrid}} is set to \colorbox{lightgray!25}{\lstinline{True}}. The \colorbox{lightgray!25}{\lstinline{distance_metric}} determines which metric should be used for the search in the \textit{vector space}; if none is specified, the \textit{cosine similarity} is used by default. Possible values for \colorbox{lightgray!25}{\lstinline{distance_metric}} are \colorbox{lightgray!25}{\lstinline{cosine}}, \colorbox{lightgray!25}{\lstinline{l2}} and \colorbox{lightgray!25}{\lstinline{ip}}.
 
 The \textit{documents} are stored using a \colorbox{lightgray!25}{\lstinline{pandas.DataFrame}} with columns \textit{id}, \textit{text} and \textit{vector}.
 
@@ -597,16 +598,17 @@ for causal_id in causal_models:
 \subsection{Results}
 \subsubsection{Dataset}
 \paragraph{SQuADv2}
-\textit{Squadv2}\footnote{\href{https://huggingface.co/datasets/squad_v2}{SQuADv2 on huggingface}} is a dataset that extends \textit{SQuADv1}, which comprises 100,000 data points containing an \textit{id}, a \textit{title}, a \textit{context}, a \textit{question}, and \textit{answers}.   \textit{SQuADv2} adds 50,000 examples without \textit{answers}.
+\textit{Squadv2}\footnote{\href{https://huggingface.co/datasets/squad_v2}{SQuADv2 on huggingface} (visited 04.03.2024)} is a dataset that extends \textit{SQuADv1}, which comprises 100,000 data points containing an \textit{id}, a \textit{title}, a \textit{context}, a \textit{question}, and \textit{answers}.   \textit{SQuADv2} adds 50,000 examples without \textit{answers}.
 \textit{SQuADv1} is appropriate for testing a system's ability to answer questions based on a given \textit{context}. \textit{SQuADv2} requires the system to determine whether the question can be answered based on the provided context.
 It is important to note that the \textit{answers} provided only consist of bullet points/text snippets. However, the task in this work is to generate \textit{full-text answers} with a \textit{causal language model}. This makes it difficult to evaluate the model based on the answers provided.
 
 \paragraph{Machine Learning by Zhi-Hua Zhou (Book)}
-The book \textit{Machine Learning} by \textit{Zhi-Hua Zhou}\footnote{The book can be found online in the FH SWF \href{https://kai.fh-swf.de/permalink/49HBZ_FSW/ou32r9/alma99370954148406441}{library}.} \cite{mlBook} is used as a second dataset. The book was split into chunks using the \textit{Python package} \colorbox{lightgray!25}{\lstinline{unstructured}}.
+The book \textit{Machine Learning} by \textit{Zhi-Hua Zhou}\footnote{The book can be found online in the FH SWF \href{https://kai.fh-swf.de/permalink/49HBZ_FSW/ou32r9/alma99370954148406441}{library}. (visited 04.03.2024)} \cite{mlBook} is used as a second dataset. The book was read using the \textit{Python package} \colorbox{lightgray!25}{\lstinline{unstructured}} and split into semantic chunks using  and \colorbox{lightgray!25}{\lstinline{langchain-experimental}}. The \colorbox{lightgray!25}{\lstinline{SemanticChunker}}\footnote{\href{https://python.langchain.com/docs/modules/data_connection/document_transformers/semantic-chunker}{Langchain documentation} and \href{https://www.youtube.com/watch?v=8OJC21T2SL4&t=1930s}{youtube} presentation of the idea of semantic chunking. (visited 04.03.2024)} uses a \textit{embedding model} to calculate similarity between consecutive sentences.
 
 \begin{lstlisting}[backgroundcolor = \color{lightgray!25}]
+# read file
 elements = partition(str(file.resolve()))
-
+    # chunk by title
     text_elements = chunk_by_title(elements)
     chunks = []
 
@@ -620,33 +622,47 @@ elements = partition(str(file.resolve()))
                 trailing_punctuation=True
             )
         )
-        chunks.append(element.text)    
+        chunks.append(element.text)  
+        ...
+text_splitter = SemanticChunker(model)
+docs = text_splitter.create_documents([book])
 \end{lstlisting}
 The sections for the \textit{table of contents} and \textit{index} were sorted out, resulting in 2513 chunks for the \textit{RAG system} to work on.
 
 The \textit{RAG system} was evaluated by answering 28 \textit{machine learning} questions related to the books context. A list of these questions can be found in \cref{appendix_a}.
 
 \subsubsection{Models}
-Each combination of the models listed below was tested. In addition, each combination was tested in a \textit{hybrid setup} with \textit{score weight} of 0.5.
+Each combination of the models listed below was tested. In addition, each combination was tested in a \textit{hybrid setup} with a \textit{score weight} of 0.5 for each.
 
 \subsubsection*{Retriever}
+The selected \textit{embedding models} were taken from \textit{MTEB ( Massive Text Embedding Benchmark)}\footnote{\href{https://huggingface.co/spaces/mteb/leaderboard}{HuggingFace MTEB} (visited 04.03.2024)}. \textit{MTEB} \cite{MTEB} is a benchmark for measuring text embeddings models in various tasks. All models used are open source.\\
+\\
 "sentence-transformers/all-MiniLM-L6-v2"\\ 
 "BAAI/bge-base-en-v1.5"\\ 
 "WhereIsAI/UAE-Large-V1"\\ 
 "BAAI/bge-m3"
 
 \subsubsection*{Causal models}
+The \textit{causal models} used are all \textit{instruction fine-tuned} models, identifiable by their suffix (\textit{it} or \textit{instruct}).
+The list of \textit{causal models} include the open source models from \textit{Mistral.AI}, the \colorbox{lightgray!25}{\lstinline{mistralai/Mistral-7B-Instruct-v0.2}} and the \colorbox{lightgray!25}{\lstinline{mistralai/Mixtral-8x7B-Instruct-v0.1}}. The \colorbox{lightgray!25}{\lstinline{HuggingFaceH4/zephyr-7b-beta}} is a variant of \colorbox{lightgray!25}{\lstinline{mistralai/Mistral-7B-v0.1}} that has been further \textit{fine-tuned} by \textit{HuggingFace} and therefore has the same architecture. In contrast to the other models, \colorbox{lightgray!25}{\lstinline{mistralai/Mixtral-8x7B-Instruct-v0.1}} is a significantly larger model with 46.7 billion parameters\footnote{\href{https://mistral.ai/news/mixtral-of-experts/}{Mixtral of experts} (visited 04.03.2024)}.
+
+In addition to the model variants from \textit{Mistral}, the new open source models from \textit{Google} called \textit{Gemma} were also tested. There are two variants, one model with approx. 2 billion parameters and another with 7 billion. A \textit{7B Zephyr} variant of \textit{Gemma} fine-tuned by \textit{HuggingFace} was also tested.\\
+\\
 The \textit{causal language models} were all loaded in \colorbox{lightgray!25}{\lstinline{torch.float16}} format.\\
 \\
-"HuggingFaceH4/zephyr-7b-beta" \\
-"google/gemma-7b-it"\\
+"HuggingFaceH4/zephyr-7b-beta"\\
 "mistralai/Mistral-7B-Instruct-v0.2"\\
-"meta-llama/Llama-2-7b-chat-hf"
+"HuggingFaceH4/zephyr-7b-gemma-v0.1"\\
+"mistralai/Mixtral-8x7B-Instruct-v0.1"\\
+"google/gemma-2b-it"\\
+"google/gemma-7b-it"\\
+\\
+\textbf{NOTE:} Model \colorbox{lightgray!25}{\lstinline{google/gemma-7b-it}} was excluded from the evaluation because it only generated the sequence \colorbox{lightgray!25}{\lstinline{<pad><pad><pad><eos>}} for all pairs. However, the small variant \colorbox{lightgray!25}{\lstinline{google/gemma-2b-it}} was able to generate good answers.
 
 \subsubsection{Metrics}\label{metrics}
-First of all, it must be said that evaluating an entire \textit{RAG system} is difficult. This is because evaluating the responses of a \textit{causal language model} alone is difficult, as the answers generated can vary but may have the same meaning. This means that there is no single correct answer. Another problem with evaluating the \textit{causal language model }is that it relies on the performance of the \textit{retriever}, otherwise incorrect contexts will be returned and the model will not be able to answer the user's queries. 
+First of all, it must be said that evaluating an entire \textit{RAG system} is difficult. This is because evaluating the responses of a \textit{causal language model} alone is difficult, as the answers generated can vary but may have the same meaning. This means that there is no single correct answer. Another problem with evaluating the \textit{causal language model }is that it relies on the performance of the \textit{retriever}, otherwise incorrect contexts will be retrieved and the model will not be able to answer the user's queries. 
 
-We use different metrics to measure and evaluate the performance of the \textit{language models}. For the \textit{retriever} model, we measure its performance using the \textit{normalized discounted cumulative gain (NDCG)}.
+We use different metrics to measure and evaluate the performance of the \textit{language models}. For the \textit{retriever} model, we measure its performance using the \textit{normalized discounted cumulative gain (NDCG)}. As described, since the evaluation of \textit{causal language models} proves to be difficult, several metrics come into play. For the \textit{causal model}, \textit{BLEU}, \textit{ROUGE}, different versions of \textit{Recall} and \textit{Precision}, \textit{F1} and \textit{Judging LLM-as-a-Judge} are used for evaluation.
 
 \paragraph{Normalized Discounted Cumulative Gain (NDCG)}
 The \textit{NDCG} is a metric for measuring rankings in which relevant documents are found and suggested \cite{NDCG}. In contrast to other ranking metrics, the \textit{NDCG} enables us to give documents some kind of a continuous \textit{relevance score} based on query, whereas other metrics only allow binary values for relevance.
@@ -669,8 +685,6 @@ and \textit{IDCG} is same as \textit{DCG} (resulting ranking order) but with opt
 \paragraph{BLEU (Bilingual Evaluation Understudy)} \textit{BLEU} is a metric that is frequently used in \textit{machine translation} \cite{BLEU}. Similar to generating text, as a \textit{RAG system} does, \textit{machine translation} also generates free text, but in a more dependent context.
 
 \textit{BLEU} compares the quality of a translation by searching for identical \textit{n-grams} to evaluate the correspondence between the \textit{machine translation} and a \textit{human translation}.
-
-\paragraph{Language Model as a Judge}
 
 \begin{align}
 \begin{split}
@@ -714,74 +728,135 @@ The \textit{F1 score} is a metric that balances \textit{precision} and \textit{r
 \end{split}
 \end{align}
 
-\subsubsection{Result}
+\paragraph{Judging LLM-as-a-Judge}
+\cite{judge} describes a modern approach that uses a \textit{large language model} to evaluate generated answers based on context, similar to human evaluation. It is crucial to use a language model with greater capacity for evaluation, which is why \textit{GPT-3.5-turbo}\footnote{\href{https://platform.openai.com/docs/models/gpt-3-5-turbo}{GPT-3.5-turbo documentation} (visited 04.03.2024)} was used in this work. Only \textit{answers} generated in combination with the best \textit{retriever model} were evaluated.
+
+\subsubsection{Result - SQuADv2}\label{Squadv2Results}
 
 \subsubsection*{Retriever}
-The values in the table show the \textit{NDCG} scores for the \textit{SQuADv2} dataset. Each combination was tested on 500 examples. The examples were divided into 400 examples with questions that could be answered using a given context and 100 examples whose questions could not be answered using the context provided.
+\Cref{NDCGTable} shows the \textit{NDCG} scores for the \textit{SQuADv2} dataset. Each combination was tested on 500 examples. The examples were divided into 400 examples with questions that could be answered using a given context and 100 examples whose questions could not be answered using the context provided.
 
-It is noteworthy that model \textit{sentence-transformers/all-MiniLM-L6-v2}, the smallest of the models used, achieved the best scores. The \textit{hybrid search} consistently improved the results for all combinations. It is peculiar to observe that the different distance metrics per model produced identical results.\\
-\\
+It is noteworthy that the \textit{sentence-transformers/all-MiniLM-L6-v2}, the smallest of the models used, achieved the best scores. The \textit{hybrid search} consistently improved the results for all combinations. It is peculiar to observe that the different distance metrics per model produced identical results.
+All models perform best when \textit{cosine similarity} is used as the distance metric.
+\begin{figure}[H]
+    \centering
 \begin{tabular}{ |c|c|c|c|c|c|c|  }
  \hline
 
  model& cosine &cosine hybrid&ip&ip hybrid& $\ell^{2}$&$\ell^{2}$ hybrid\\
  \hline
  \hline
- sentence-transformers/all-MiniLM-L6-v2& 0.822904&\textbf{0.873533}&0.822904&\textbf{0.873533}&0.822904&\textbf{0.873533}\\
+ sentence-transformers/all-MiniLM-L6-v2& 0.823&\textbf{0.874}&0.823&\textbf{0.874}&0.823&\textbf{0.874}\\
  \hline
- WherelsAl/UAE-Large-V1& 0.857350&0.870450&0.857350&0.870450&0.857350&0.870450\\
+ WherelsAl/UAE-Large-V1& \textbf{0.857}&0.870&\textbf{0.857}&0.870&\textbf{0.857}&0.870\\
  \hline
- BAAl/bge-m3& 0.795663&0.859185&0.795663&0.859185&0.795663&0.859185\\
+ BAAl/bge-m3& 0.796&0.859&0.796&0.859&0.796&0.859\\
  \hline
- BAAI/bge-base-en-v1.5& 0.855504&0.869621&0.855504&0.869621&0.855504&0.869621\\
+ BAAI/bge-base-en-v1.5& 0.856&0.870&0.856&0.870&0.856&0.870\\
  \hline
 \end{tabular}
+\caption{\textit{NDCG} results rounded to three decimal places.}
+\label{NDCGTable}
+\end{figure}
 
 \subsubsection*{Decoder}\label{mlresult}
-The table shows the scores for the \textit{SQuADv2} dataset. It is important to note that these metrics may not be the most appropriate for evaluating the model, as it generates free text.
-What can be observed is that the \textit{mistralai/Mistral-7B-Instruct-v0.2} performs best in most categories. Only in the recall scores is \textit{HuggingFaceH4/zephyr-7b-beta2} better than \textit{mistralai/Mistral-7B-Instruct-v0.2}. It should be noted that \textit{HuggingFaceH4/zephyr-7b-beta2} is a fine tuned version of \textit{mistralai/Mistral-7B-Instruct-v0.2}.\\
+In \cref{causalLMMetrics}, the results for the metrics \textit{ROUGE}, \textit{Precision}, \textit{Recall} and \textit{F1} of the \textit{causal language models} are presented.   As previously mentioned, evaluating free text can be challenging, especially since the answers provided by \textit{SQuADv2} are only individual words and not complete sentences.
+Therefore, the results do not provide much insight into the correctness and quality of the answers. It is evident that, for the most part, the small variant of the \textit{gemma} models performed the best.\\
 \\
+\textbf{NOTE:} It is worth noting that BLEU is not included in this evaluation as all models scored towards 0.
+\begin{figure}[H]
+    \centering
 \begin{tabular}{ |c|c|c|c|c|c|c|  }
  \hline
 
  model& r1 precision &r1 recall&r1 f1&rL precision&rL recall&rL f1\\
  \hline
  \hline
- HuggingFaceH4/zephyr-7b-beta2& 0.024778&\textbf{0.366640}&0.044254&0.022605&\textbf{0.348476}&0.040514\\
+ mistralai/Mistral-7B-Instruct-v0.2& 0.068&0.510&0.107&0.0631&0.477&0.092\\
  \hline
- google/gemma-7b-it& 0.027905&0.183684&0.044423&0.025373&0.173073&0.040591\\
+ mistralai/Mixtral-8x7B-Instruct-v0.1& 0.0765&0.522&0.121&0.070&0.484&0.111\\
  \hline
- meta-llama/Llama-2-7b-chat-h&0.020760&0.289247&0.036523&0.019008&0.272986&0.033484\\
+ HuggingFaceH4/zephyr-7b-beta&0.041&\textbf{0.559}&0.071&0.037&\textbf{0.527}&0.065\\
  \hline
- mistralai/Mistral-7B-Instruct-v0.2& \textbf{0.040925}&0.238148&\textbf{0.064073}&\textbf{0.032702}&0.204071&\textbf{0.051511}\\
+ \textbf{google/gemma-2b-it}& \textbf{0.090}&0.394&\textbf{0.133}&\textbf{0.080}&0.364&\textbf{0.119}\\
+ \hline
+ HuggingFaceH4/zephyr-7b-gemma-v0.1& 0.028&0.475&0.050&0.026&0.454&0.046\\
  \hline
 \end{tabular}
-\\
-\\
-Here, \textit{r1} and \textit{rL} represent \textit{ROUGE-1} and \textit{ROUGE-L}, respectively.
+\caption{Here, \textit{r1} and \textit{rL} represent \textit{ROUGE-1} and \textit{ROUGE-L}, respectively. (Results were rounded to three decimal places.)}
+\label{causalLMMetrics}
+\end{figure}
 
-\subsubsection*{Machine Learning book evaluation}
-The complete raw pairs from \textit{context}, \textit{question} and \textit{answer} can be found in \cref{appendix_b}.
-A combination of the best \textit{retriever model (sentence-transformers/all-MiniLM-L6-v)} and the best \textit{causal language model (mistralai/Mistral-7B-Instruct-v0.2)} was used to process the dataset. Overall, it can be said that the \textit{causal language model} was able to answer most of the questions satisfactorily.
+\Cref{JudgeSquadv2} shows the results for \textit{Judging LLM-as-a-Judge}. This metric provides a better indication of the quality and accuracy of the answers generated. Unlike in \cref{causalLMMetrics}, \textit{HuggingFaceH4-zephyr-7b-beta} performs the best in this scenario. It is worth noting that the largest model, \textit{mistralai-Mixtral-8x7B-Instruct-v0.1}, only ranks third and is not significantly better than the smallest model \textit{google-gemma-2b-it}.
 
-What is very noticeable is that the grammar and the general sentence structure have become very poor in the generated answers. This is perhaps due to the fact that the contexts are not trimmed properly and sometimes end or begin in the middle of a word. This could have contributed to the model being "confused" during generation and unable to build good sentence structures. These problems did not occur during the \textit{SQuADv2} experiment, where the contexts were fully included because they were short enough.
+\begin{figure}[H]
+    \centering
+\begin{tabular}{ |c|c|c|c|  }
 
-In both experiments, it was noticeable that the model struggled to generate the phrase 'I do not know' accurately and produced several grammatically incorrect variations of it.
+\hline
 
-\newpage
+model&correct &wrong& \%\\
+\hline
+\hline
+mistralai-Mistral-7B-Instruct-v0.2&400&100&80.0\\
+\hline
+mistralai-Mixtral-8x7B-Instruct-v0.1&396&104&79.2\\
+\hline
+\textbf{HuggingFaceH4-zephyr-7b-beta}& \textbf{427}&73&\textbf{85.4}\\
+\hline
+google-gemma-2b-it& 387&113&77.4\\
+\hline
+HuggingFaceH4-zephyr-7b-gemma-v0.1& 337&163&67.4\\
+\hline
+
+\end{tabular}
+\caption{Results from \textit{Judging LLM-as-a-Judge} on \textit{SQuADv2}.}
+\label{JudgeSquadv2}
+\end{figure}
+
+\subsubsection{Result - Machine Learning Book}
+The complete raw pairs from \textit{context}, \textit{question} and \textit{answer} can be found in \colorbox{green!25}{\lstinline{LLM-as-a-judge-ML-BOOK.xlsx}}.
+A combination of the best \textit{retriever model (sentence-transformers/all-MiniLM-L6-v)} and all \textit{causal language models}, except for \colorbox{lightgray!25}{\lstinline{google/gemma-7b-it}} and \colorbox{lightgray!25}{\lstinline{mistralai/Mixtral-8x7B-Instruct-v0.1}} (due to its size) were used to process the dataset. Overall, it can be said that all \textit{causal language models} were able to answer most of the questions satisfactorily.
+Like \cref{Squadv2Results}, the \textit{Mistral.Ai} models architecture perform best. 
+
+\begin{figure}[H]
+    \centering
+\begin{tabular}{ |c|c|c|c|  }
+
+\hline
+
+model&correct &wrong& \%\\
+\hline
+\hline
+\textbf{mistralai/Mistral-7B-Instruct-v0.2}&\textbf{25}&2&\textbf{92.59}\\
+\hline
+\textbf{HuggingFaceH4/zephyr-7b-beta}&\textbf{25}&2&\textbf{92.59}\\
+\hline
+google/gemma-2b-it&21&6&77.77\\
+\hline
+HuggingFaceH4/zephyr-7b-gemma-v0.1&23&4&85.18\\
+\hline
+
+\end{tabular}
+\caption{Results from \textit{Judging LLM-as-a-Judge} on \textit{Machine Learning Book} dataset.}
+\end{figure}
+
+No evaluations with metrics \textit{ROUGE}, \textit{BLEU}, \textit{Precision}, \textit{Recall} and \textit{F1} are available for this experiment as the dataset does not contain any reference answers.
+
 \subsubsection{Conclusion}
-\textit{RAG} appears to be a promising alternative to address the limitations of \textit{large causal language models}. However, as is often the case in \textit{machine learning}, it is important to ensure the cleanliness of the data, as demonstrated in \cref{mlresult}. The \textit{retrievers} have performed exceptionally well, particularly in the \textit{hybrid} variant. It would be intriguing to compare their performance with that of \textit{commercial embeddings}. To improve results, it may be possible to \textit{fine-tune} the \textit{retriever models} on the given data.
+\textit{RAG} appears to be a promising alternative to address the limitations of \textit{large causal language models}. However, as is often the case in \textit{machine learning}, it is important to ensure the cleanliness of the data, as demonstrated in \cref{mlresult}. 
+
+The \textit{retrievers} have performed exceptionally well, particularly in the \textit{hybrid} variant. It would be interesting to compare their performance with that of \textit{commercial embeddings}. To improve results, it may be possible to \textit{fine-tune} the \textit{retriever models} on the given data.
 
 Training the \textit{generative model} can also lead to better results, but it should be noted that the whole system is dependent on the good results of the \textit{retriever}. 
 
-Another component that was not considered here is a \textit{neural reranker} that uses \textit{cross attention} to calculate a similarity between the question and the found contexts and reranks the results.
+Another component that was not considered here is a \textit{neural reranker} that uses \textit{cross attention} to calculate a similarity between the question and the found contexts and reranks the results.\\
+\\
+One problem with the evaluation of \textit{generative language models} is the difficulty in assessing the correctness and semantic similarity of the generated text. Using another \textit{large causal language model} as a \textit{judge} seems to work well, but caution is advised, as \textit{large language models} can generate unpredictable results and are therefore not always dependable as an evaluation system. 
 
-One problem with the evaluation of \textit{generative language models} is the difficulty in assessing the correctness and semantic similarity of the generated text. of the generated text. One idea could be \textit{Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena} presented in \cite{judge}. \cite{judge} uses another \textit{language model} to evaluate the quality of the system answers. However, caution must be exercised even in this case, as \textit{large language models} can generate unpredictable results and are therefore not always dependable as an evaluation system.
+Another approach that follows this concept is \textit{RAGAS (Automated Evaluation of Retrieval Augmented Generation)} \cite{ragas}. \cite{ragas} also uses a \textit{large language model} to evaluate results. The evaluation provides several values that determine the quality of the generated answers.
 
 \newpage
-
-\bibliographystyle{plain}
-\bibliography{bibliography}
 
 % Appendix =====================================================
 \newpage
@@ -790,7 +865,7 @@ One problem with the evaluation of \textit{generative language models} is the di
 \section{Appendix List of questions}\label{appendix_a}
 \input{appendix_a}
 \newpage
-\section{Appendix Machine Learning questions, contexts and answers}\label{appendix_b}
+%\section{Appendix Machine Learning questions, contexts and answers}%\label{appendix_b}
 %\input{appendix_b}
 
 % bibliography =====================================================
