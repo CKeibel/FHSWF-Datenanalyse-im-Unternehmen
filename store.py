@@ -7,7 +7,7 @@ from model import BM25Model, EncoderModel
 
 class VectorStore:
     """VectorStore class that enables a hybrid search."""
-    def __init__(self, model_id, hybrid=False, weight=0.5, distance_metric=None):
+    def __init__(self, model_id, hybrid=False, weight=0.5, distance_metric=None, device=None):
         """Initialize VectorStore
         
         Args:
@@ -21,11 +21,14 @@ class VectorStore:
         Note:
             If hybrid is set to True, a BM25 model is instantiated.
         """
-        self.encoder = EncoderModel(model_id)
+        self.encoder = EncoderModel(model_id, device)
         self.bm25 = BM25Model() if hybrid else None
         self.documents = pd.DataFrame(columns=["id", "text", "vector"])
         self.distance_metric = distance_metric
         self.weight = weight
+        
+    def reset(self):
+        self.documents = pd.DataFrame(columns=["id", "text", "vector"])
         
     def normalize_scores(self, scores):
         """Function to normalize search scores.
@@ -182,8 +185,12 @@ class VectorStore:
         if self.distance_metric == "l2":
             scores = np.subtract(1, scores)
         return {idx: score for idx, score in zip(idxs, scores)}
+    
+    def batch_documents(self, documents, ids, batch_size):
+        for i in range(0, len(documents), batch_size):
+            yield {"documents": documents[i:i+batch_size], "ids": ids[i:i+batch_size]}
                 
-    def add_documents(self, documents: list[str], ids=None):
+    def add_documents(self, documents: list[str], ids=None, batch_size=None):
         """Add documents to vector store.
         
         Args:
@@ -193,23 +200,28 @@ class VectorStore:
         Note:
             Creates word corpus for bm25 if hybrid is set to True.
         """
+        batch_size = batch_size if batch_size else len(documents)
         
-        # embed documents into dense vector space
-        vectors = self.encoder(documents)
         # generate ids if not given
         if ids is None:
             ids = [i + len(self.documents) for i, _ in enumerate(documents)]
+            
+        # embed documents into dense vector space
+        batched_documents = self.batch_documents(documents, ids, batch_size)
         
-        # store new documents to pd.DataFrame
-        new_data = pd.DataFrame(
-                    {
-                        "id": ids,
-                        "text": documents,
-                        "vector": vectors.tolist()
-                    }
-                )
-        # concat new_data and old documents
-        self.documents = pd.concat([self.documents, new_data])
+        for batch in batched_documents:
+            vectors = self.encoder(batch["documents"])
+            
+            # store new documents to pd.DataFrame
+            new_data = pd.DataFrame(
+                        {
+                            "id": batch["ids"],
+                            "text": batch["documents"],
+                            "vector": vectors.tolist()
+                        }
+                    )
+            # concat new_data and old documents
+            self.documents = pd.concat([self.documents, new_data])
         
         # generate word corpus for sparse search
         if self.bm25:
